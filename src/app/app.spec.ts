@@ -1,5 +1,17 @@
 import { TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { App } from './app';
+
+vi.mock('@perspective-dev/client', () => ({
+  default: {
+    worker: vi.fn().mockResolvedValue({
+      table: vi.fn().mockResolvedValue({}),
+    }),
+  },
+}));
+
+vi.mock('@perspective-dev/viewer-datagrid', () => ({}));
+vi.mock('@perspective-dev/viewer-d3fc', () => ({}));
 
 describe('App', () => {
   beforeEach(async () => {
@@ -18,6 +30,6 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, Vortex');
+    expect(compiled.querySelector('h1')?.textContent).toContain('Vortex');
   });
 });

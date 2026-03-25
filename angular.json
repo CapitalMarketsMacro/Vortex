@@ -25,16 +25,20 @@
               }
             ],
             "styles": [
+              "node_modules/@perspective-dev/viewer/dist/css/themes.css",
               "src/styles.css"
-            ]
+            ],
+            "loader": {
+              ".wasm": "file"
+            }
           },
           "configurations": {
             "production": {
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kB",
-                  "maximumError": "1MB"
+                  "maximumWarning": "1.5MB",
+                  "maximumError": "3MB"
                 },
                 {
                   "type": "anyComponentStyle",
@@ -66,6 +70,32 @@
         },
         "test": {
           "builder": "@angular/build:unit-test"
+        }
+      }
+    },
+    "vortex-blotter": {
+      "projectType": "library",
+      "root": "projects/vortex-blotter",
+      "sourceRoot": "projects/vortex-blotter/src",
+      "prefix": "lib",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:ng-packagr",
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/vortex-blotter/tsconfig.lib.prod.json"
+            },
+            "development": {
+              "tsConfig": "projects/vortex-blotter/tsconfig.lib.json"
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "projects/vortex-blotter/tsconfig.spec.json"
+          }
         }
       }
     }

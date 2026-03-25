@@ -17,6 +17,12 @@
     "@angular/forms": "^21.2.0",
     "@angular/platform-browser": "^21.2.0",
     "@angular/router": "^21.2.0",
+    "@perspective-dev/client": "^4.3.0",
+    "@perspective-dev/server": "^4.3.0",
+    "@perspective-dev/viewer": "^4.3.0",
+    "@perspective-dev/viewer-d3fc": "^4.3.0",
+    "@perspective-dev/viewer-datagrid": "^4.3.0",
+    "@perspective-dev/viewer-openlayers": "^4.3.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
@@ -25,6 +31,7 @@
     "@angular/cli": "^21.2.3",
     "@angular/compiler-cli": "^21.2.0",
     "jsdom": "^28.0.0",
+    "ng-packagr": "^21.2.0",
     "prettier": "^3.8.1",
     "typescript": "~5.9.2",
     "vitest": "^4.0.8"

@@ -1,0 +1,16 @@
+{
+  "name": "vortex-blotter",
+  "version": "0.0.1",
+  "peerDependencies": {
+    "@angular/common": "^21.2.0",
+    "@angular/core": "^21.2.0",
+    "@perspective-dev/client": "^4.3.0",
+    "@perspective-dev/viewer": "^4.3.0",
+    "@perspective-dev/viewer-d3fc": "^4.3.0",
+    "@perspective-dev/viewer-datagrid": "^4.3.0"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "sideEffects": true
+}
