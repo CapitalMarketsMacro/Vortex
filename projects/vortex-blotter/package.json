@@ -5,6 +5,7 @@
     "@angular/common": "^21.2.0",
     "@angular/core": "^21.2.0",
     "@perspective-dev/client": "^4.3.0",
+    "@perspective-dev/server": "^4.3.0",
     "@perspective-dev/viewer": "^4.3.0",
     "@perspective-dev/viewer-d3fc": "^4.3.0",
     "@perspective-dev/viewer-datagrid": "^4.3.0"
@@ -12,5 +13,9 @@
   "dependencies": {
     "tslib": "^2.3.0"
   },
-  "sideEffects": true
+  "sideEffects": true,
+  "exports": {
+    "./perspective-themes.css": "./perspective-themes.css",
+    "./perspective-wasm.d.ts": "./perspective-wasm.d.ts"
+  }
 }

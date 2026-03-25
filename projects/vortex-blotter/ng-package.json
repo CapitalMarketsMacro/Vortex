@@ -3,5 +3,17 @@
   "dest": "../../dist/vortex-blotter",
   "lib": {
     "entryFile": "src/public-api.ts"
-  }
+  },
+  "assets": [
+    {
+      "glob": "**/*",
+      "input": "assets",
+      "output": "."
+    },
+    {
+      "glob": "perspective-wasm.d.ts",
+      "input": "src",
+      "output": "."
+    }
+  ]
 }
