@@ -21,23 +21,120 @@
   overflow: hidden;
 }
 
-.blotter-head {
+.blotter-toolbar {
+  flex: 0 0 auto;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.65rem 1rem;
+  flex-direction: column;
   border-bottom: 1px solid oklch(38% 0.04 280 / 0.6);
   background: oklch(14% 0.025 280 / 0.9);
-  flex: 0 0 auto;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
 }
 
-.blotter-title {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: oklch(82% 0.02 280);
+/* Collapsed: slim tab-strip that reads as a light edge, not a tall chrome bar. */
+.blotter-toolbar--collapsed {
+  background: linear-gradient(
+    180deg,
+    oklch(17% 0.03 280 / 0.42) 0%,
+    oklch(9% 0.015 280 / 0.38) 100%
+  );
+  border-bottom-color: oklch(38% 0.04 280 / 0.28);
+  box-shadow: inset 0 1px 0 0 oklch(100% 0 0 / 0.035);
+}
+
+/* Full-width tab strip: entire row is the toggle (not only the chevron). */
+.blotter-toolbar__bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0.1rem 0.45rem 0.12rem;
+  line-height: 1;
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  color: oklch(58% 0.02 280);
+}
+
+.blotter-toolbar--collapsed .blotter-toolbar__bar {
+  padding: 0.06rem 0.4rem 0.08rem;
+  color: oklch(52% 0.02 280);
+}
+
+.blotter-toolbar:not(.blotter-toolbar--collapsed) .blotter-toolbar__bar {
+  padding: 0.18rem 0.5rem 0.2rem;
+}
+
+.blotter-toolbar__bar:hover {
+  background: oklch(26% 0.03 280 / 0.65);
+  color: oklch(84% 0.02 280);
+}
+
+.blotter-toolbar--collapsed .blotter-toolbar__bar:hover {
+  background: oklch(22% 0.025 280 / 0.5);
+}
+
+.blotter-toolbar__bar:focus-visible {
+  outline: 2px solid oklch(65% 0.12 230);
+  outline-offset: 1px;
+  position: relative;
+  z-index: 1;
+}
+
+.blotter-toolbar__chevron {
+  width: 0.8125rem;
+  height: 0.8125rem;
+  transition: transform 0.22s ease;
+}
+
+.blotter-toolbar:not(.blotter-toolbar--collapsed) .blotter-toolbar__chevron {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.blotter-toolbar--collapsed .blotter-toolbar__chevron {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+/* Chevron down = expand; chevron up = collapse (expanded state). */
+.blotter-toolbar:not(.blotter-toolbar--collapsed) .blotter-toolbar__chevron {
+  transform: rotate(180deg);
+}
+
+.blotter-toolbar__details {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows 0.26s ease,
+    opacity 0.2s ease;
+}
+
+.blotter-toolbar--collapsed .blotter-toolbar__details {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.blotter-toolbar__details-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.blotter-toolbar__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid oklch(38% 0.04 280 / 0.45);
 }
 
 .blotter-head-actions {

@@ -3,136 +3,174 @@
   aria-label="Vortex blotter"
   [attr.aria-busy]="loading()"
 >
-  <header class="blotter-head">
-    <span class="blotter-title">Blotter</span>
-    <div class="blotter-head-actions">
-      <span class="blotter-badge">{{ statusBadge() }}</span>
-      <button
-        type="button"
-        class="blotter-icon-btn"
-        (click)="openRowStyleEditor()"
-        [attr.aria-expanded]="rowStyleEditorOpen()"
-        [attr.aria-controls]="rowStyleEditorPanelId"
-        aria-haspopup="dialog"
-        aria-label="Row style rules"
-        title="Row style rules"
-      >
-        <svg
-          class="blotter-icon-btn__svg"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <path
-            fill="currentColor"
-            d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.07-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94L14.4 2.81a.5.5 0 0 0-.5-.43h-3.8a.5.5 0 0 0-.5.43l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.5.5 0 0 0-.6.22L2.74 8.87c-.14.23-.1.52.12.64l2.03 1.58c-.05.31-.08.63-.08.94s.02.63.08.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.12.22.37.31.6.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.27.43.5.43h3.8c.25 0 .46-.19.5-.43l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.23.09.48 0 .6-.22l1.92-3.32c.12-.22.1-.51-.12-.64l-2.03-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"
-          />
-        </svg>
-      </button>
-      <button
-        type="button"
-        class="blotter-icon-btn"
-        (click)="openColumnHeaderEditor()"
-        [attr.aria-expanded]="columnHeaderEditorOpen()"
-        [attr.aria-controls]="columnHeaderEditorPanelId"
-        aria-haspopup="dialog"
-        aria-label="Column header names"
-        title="Column header names"
-      >
-        <svg
-          class="blotter-icon-btn__svg"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <path
-            fill="currentColor"
-            d="M3 5v14h18V5H3zm16 2v1H5V7h14zm0 4v4H5v-4h14zm0 6v1H5v-1h14z"
-          />
-        </svg>
-      </button>
-      <button
-        type="button"
-        class="blotter-icon-btn"
-        (click)="openLayoutManager()"
-        [attr.aria-expanded]="layoutManagerOpen()"
-        [attr.aria-controls]="layoutManagerPanelId"
-        aria-haspopup="dialog"
-        aria-label="Save or load layouts"
-        title="Layouts (save / load)"
-      >
-        <svg
-          class="blotter-icon-btn__svg"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <path
-            fill="currentColor"
-            d="M17 3H5c-1.11 0-2 .9-2 2v14h4v-4h10V5c0-1.1-.9-2-2-2zm-5 12h-2v-2h2v2zm0-4h-2V5h2v6z"
-          />
-        </svg>
-      </button>
-    </div>
-  </header>
   <div class="blotter-body">
     @if (loadError(); as err) {
       <p class="blotter-error" role="alert">{{ err }}</p>
     }
-    @if (!hasParentConfig() && demoHint(); as hint) {
-      <p class="blotter-info" role="status">{{ hint }}</p>
-    }
-    @if (!hasParentConfig()) {
-      <div class="blotter-setup">
-        <div class="blotter-field blotter-field--url">
-          <label class="blotter-label" [attr.for]="wsInputId">WebSocket URL</label>
-          <input
-            [id]="wsInputId"
-            type="text"
-            class="blotter-input"
-            [attr.list]="wsDatalistId"
-            [value]="internalUrl()"
-            (input)="onWsInput($event)"
-            spellcheck="false"
-            autocomplete="off"
-            placeholder="ws://host:port/path"
+    <header
+      class="blotter-toolbar"
+      [class.blotter-toolbar--collapsed]="!toolbarExpanded()"
+    >
+      <button
+        type="button"
+        class="blotter-toolbar__bar"
+        (click)="toggleToolbar()"
+        [attr.aria-expanded]="toolbarExpanded()"
+        [attr.aria-controls]="toolbarDetailsPanelId"
+        [attr.aria-label]="toolbarToggleAriaLabel()"
+        title="Show or hide toolbar"
+      >
+        <svg
+          class="blotter-toolbar__chevron"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            fill="currentColor"
+            d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"
           />
-          <datalist [id]="wsDatalistId">
-            @for (u of wsUrlOptions; track u) {
-              <option [value]="u"></option>
-            }
-          </datalist>
+        </svg>
+      </button>
+      <div
+        class="blotter-toolbar__details"
+        [id]="toolbarDetailsPanelId"
+        [attr.aria-hidden]="!toolbarExpanded()"
+        [attr.inert]="toolbarExpanded() ? null : ''"
+      >
+        <div class="blotter-toolbar__details-inner">
+          <div class="blotter-toolbar__tools">
+            <span class="blotter-badge">{{ statusBadge() }}</span>
+            <div class="blotter-head-actions">
+              <button
+                type="button"
+                class="blotter-icon-btn"
+                (click)="openRowStyleEditor()"
+                [attr.aria-expanded]="rowStyleEditorOpen()"
+                [attr.aria-controls]="rowStyleEditorPanelId"
+                aria-haspopup="dialog"
+                aria-label="Row style rules"
+                title="Row style rules"
+              >
+                <svg
+                  class="blotter-icon-btn__svg"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.07-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94L14.4 2.81a.5.5 0 0 0-.5-.43h-3.8a.5.5 0 0 0-.5.43l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.5.5 0 0 0-.6.22L2.74 8.87c-.14.23-.1.52.12.64l2.03 1.58c-.05.31-.08.63-.08.94s.02.63.08.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.12.22.37.31.6.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.27.43.5.43h3.8c.25 0 .46-.19.5-.43l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.23.09.48 0 .6-.22l1.92-3.32c.12-.22.1-.51-.12-.64l-2.03-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"
+                  />
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="blotter-icon-btn"
+                (click)="openColumnHeaderEditor()"
+                [attr.aria-expanded]="columnHeaderEditorOpen()"
+                [attr.aria-controls]="columnHeaderEditorPanelId"
+                aria-haspopup="dialog"
+                aria-label="Column header names"
+                title="Column header names"
+              >
+                <svg
+                  class="blotter-icon-btn__svg"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M3 5v14h18V5H3zm16 2v1H5V7h14zm0 4v4H5v-4h14zm0 6v1H5v-1h14z"
+                  />
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="blotter-icon-btn"
+                (click)="openLayoutManager()"
+                [attr.aria-expanded]="layoutManagerOpen()"
+                [attr.aria-controls]="layoutManagerPanelId"
+                aria-haspopup="dialog"
+                aria-label="Save or load layouts"
+                title="Layouts (save / load)"
+              >
+                <svg
+                  class="blotter-icon-btn__svg"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M17 3H5c-1.11 0-2 .9-2 2v14h4v-4h10V5c0-1.1-.9-2-2-2zm-5 12h-2v-2h2v2zm0-4h-2V5h2v6z"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+          @if (!hasParentConfig() && demoHint(); as hint) {
+            <p class="blotter-info" role="status">{{ hint }}</p>
+          }
+          @if (!hasParentConfig()) {
+            <div class="blotter-setup">
+              <div class="blotter-field blotter-field--url">
+                <label class="blotter-label" [attr.for]="wsInputId"
+                  >WebSocket URL</label
+                >
+                <input
+                  [id]="wsInputId"
+                  type="text"
+                  class="blotter-input"
+                  [attr.list]="wsDatalistId"
+                  [value]="internalUrl()"
+                  (input)="onWsInput($event)"
+                  spellcheck="false"
+                  autocomplete="off"
+                  placeholder="ws://host:port/path"
+                />
+                <datalist [id]="wsDatalistId">
+                  @for (u of wsUrlOptions; track u) {
+                    <option [value]="u"></option>
+                  }
+                </datalist>
+              </div>
+              <div class="blotter-field">
+                <label class="blotter-label" [attr.for]="tableInputId"
+                  >Table name</label
+                >
+                <input
+                  [id]="tableInputId"
+                  type="text"
+                  class="blotter-input"
+                  [attr.list]="tableDatalistId"
+                  [value]="internalTable()"
+                  (input)="onTableInput($event)"
+                  spellcheck="false"
+                  autocomplete="off"
+                  placeholder="Hosted table id"
+                />
+                <datalist [id]="tableDatalistId">
+                  @for (t of tableNameOptions; track t) {
+                    <option [value]="t"></option>
+                  }
+                </datalist>
+              </div>
+              @if (!internalLive()) {
+                <button
+                  type="button"
+                  class="blotter-connect"
+                  (click)="connectFromPicker()"
+                >
+                  Connect to server
+                </button>
+              }
+            </div>
+          }
         </div>
-        <div class="blotter-field">
-          <label class="blotter-label" [attr.for]="tableInputId">Table name</label>
-          <input
-            [id]="tableInputId"
-            type="text"
-            class="blotter-input"
-            [attr.list]="tableDatalistId"
-            [value]="internalTable()"
-            (input)="onTableInput($event)"
-            spellcheck="false"
-            autocomplete="off"
-            placeholder="Hosted table id"
-          />
-          <datalist [id]="tableDatalistId">
-            @for (t of tableNameOptions; track t) {
-              <option [value]="t"></option>
-            }
-          </datalist>
-        </div>
-        @if (!internalLive()) {
-          <button
-            type="button"
-            class="blotter-connect"
-            (click)="connectFromPicker()"
-          >
-            Connect to server
-          </button>
-        }
       </div>
-    }
+    </header>
     <div class="blotter-viewer-wrap">
       <perspective-viewer
         #viewer

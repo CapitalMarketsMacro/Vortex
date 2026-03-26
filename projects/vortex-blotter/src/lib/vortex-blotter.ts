@@ -129,6 +129,7 @@ export class VortexBlotter {
   readonly layoutManagerTitleId = `vortex-blotter-layouts-title-${this.fieldUid}`;
   readonly layoutManagerPanelId = `vortex-blotter-layouts-panel-${this.fieldUid}`;
   readonly layoutManagerNameInputId = `vortex-blotter-layout-name-${this.fieldUid}`;
+  readonly toolbarDetailsPanelId = `vortex-blotter-toolbar-details-${this.fieldUid}`;
 
   /** Hosted table name on the Perspective server; optional if using demo + local controls. */
   readonly tableName = input<string>('');
@@ -243,6 +244,9 @@ export class VortexBlotter {
   readonly layoutStatusMessage = signal<string | null>(null);
   readonly savedLayoutNames = signal<string[]>([]);
 
+  /** Top toolbar (connection fields, hints) expanded vs one-line title + actions. */
+  readonly toolbarExpanded = signal(true);
+
   readonly internalUrl = signal('http://localhost:8080/websocket');
   readonly internalTable = signal('fx_executions');
   /** When true, load from internalUrl/internalTable instead of demo rows. */
@@ -270,6 +274,12 @@ export class VortexBlotter {
     }
     return 'Live';
   });
+
+  readonly toolbarToggleAriaLabel = computed(() =>
+    this.toolbarExpanded()
+      ? 'Collapse toolbar'
+      : 'Expand toolbar',
+  );
 
   readonly columnFieldPlaceholder = computed(() =>
     this.tableColumnNames().length > 0
@@ -435,6 +445,10 @@ export class VortexBlotter {
 
   onTableInput(event: Event): void {
     this.internalTable.set((event.target as HTMLInputElement).value);
+  }
+
+  toggleToolbar(): void {
+    this.toolbarExpanded.update((v) => !v);
   }
 
   openRowStyleEditor(): void {
