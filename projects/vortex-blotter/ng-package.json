@@ -9,11 +9,6 @@
       "glob": "**/*",
       "input": "assets",
       "output": "."
-    },
-    {
-      "glob": "perspective-wasm.d.ts",
-      "input": "src",
-      "output": "."
     }
   ]
 }

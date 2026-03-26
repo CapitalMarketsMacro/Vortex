@@ -22,15 +22,17 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "**/*",
+                "input": "projects/vortex-blotter/assets/wasm",
+                "output": "assets/vortex-blotter/wasm"
               }
             ],
             "styles": [
               "projects/vortex-blotter/assets/perspective-themes.css",
               "src/styles.css"
-            ],
-            "loader": {
-              ".wasm": "file"
-            }
+            ]
           },
           "configurations": {
             "production": {

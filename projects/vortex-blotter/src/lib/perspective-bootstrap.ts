@@ -1,23 +1,36 @@
-/// <reference path="../perspective-wasm.d.ts" />
-
-/**
- * Initializes Perspective WASM for `<perspective-viewer>` (call once before first use).
- * Uses `*.wasm?url` so Vite and Angular’s esbuild both emit fetchable URLs.
- *
- * **Angular apps** must set `loader: { ".wasm": "file" }` on the application build
- * (Perspective’s ESM packages require a bundler that exposes `.wasm` as URLs).
- */
 import perspective from '@perspective-dev/client';
 import perspectiveViewer from '@perspective-dev/viewer';
-import SERVER_WASM from '@perspective-dev/server/dist/wasm/perspective-server.wasm?url';
-import CLIENT_WASM from '@perspective-dev/viewer/dist/wasm/perspective-viewer.wasm?url';
+
+/**
+ * Default URL prefix where the app serves vendored WASM (see angular.json assets).
+ * Must match the `output` path you configure for `projects/vortex-blotter/assets/wasm`.
+ */
+export const VORTEX_BLOTTER_DEFAULT_WASM_ASSETS_BASE = '/assets/vortex-blotter/wasm/';
 
 let initPromise: Promise<void> | undefined;
 
-export function bootstrapVortexBlotterPerspective(): Promise<void> {
+function normalizeWasmBase(base: string): string {
+  const t = base.trim();
+  return t.endsWith('/') ? t : `${t}/`;
+}
+
+/**
+ * Initializes Perspective WASM for perspective-viewer (call once before first use).
+ * Loads vendored perspective-server.wasm and perspective-viewer.wasm via fetch().
+ *
+ * Host apps must copy the library wasm folder into the build output (angular.json assets),
+ * e.g. input projects/vortex-blotter/assets/wasm, output assets/vortex-blotter/wasm.
+ * Published consumers: use node_modules/vortex-blotter/wasm as the asset input path.
+ *
+ * Override wasmAssetsBaseUrl if you use a different output path (trailing slash optional).
+ */
+export function bootstrapVortexBlotterPerspective(
+  wasmAssetsBaseUrl: string = VORTEX_BLOTTER_DEFAULT_WASM_ASSETS_BASE,
+): Promise<void> {
+  const base = normalizeWasmBase(wasmAssetsBaseUrl);
   initPromise ??= Promise.all([
-    perspective.init_server(fetch(SERVER_WASM)),
-    perspectiveViewer.init_client(fetch(CLIENT_WASM)),
+    perspective.init_server(fetch(`${base}perspective-server.wasm`)),
+    perspectiveViewer.init_client(fetch(`${base}perspective-viewer.wasm`)),
   ]).then(() => undefined);
   return initPromise;
 }

@@ -16,6 +16,6 @@
   "sideEffects": true,
   "exports": {
     "./perspective-themes.css": "./perspective-themes.css",
-    "./perspective-wasm.d.ts": "./perspective-wasm.d.ts"
+    "./wasm/*": "./wasm/*"
   }
 }
