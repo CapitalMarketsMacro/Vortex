@@ -3,15 +3,25 @@ import {
   Component,
   computed,
   CUSTOM_ELEMENTS_SCHEMA,
+  DestroyRef,
   effect,
   ElementRef,
+  inject,
   input,
   signal,
   viewChild,
 } from '@angular/core';
+import type { Table } from '@perspective-dev/client';
 import perspective from '@perspective-dev/client';
 import '@perspective-dev/viewer-datagrid';
 import '@perspective-dev/viewer-d3fc';
+
+import {
+  attachVortexBlotterRowStyles,
+  type VortexBlotterRowStyleRule,
+} from './perspective-row-styles';
+
+export type { VortexBlotterRowStyleRule };
 
 type PerspectiveViewerEl = HTMLElement & {
   load: (table: unknown) => Promise<void>;
@@ -66,6 +76,12 @@ export class VortexBlotter {
   /** WebSocket URL to the Perspective server; optional if using demo + local controls. */
   readonly websocketUrl = input<string>('');
 
+  /**
+   * Style entire rows when `match` returns true for the value in `column`.
+   * Uses the datagrid’s regular-table `addStyleListener` API; earlier rules win per row.
+   */
+  readonly rowStyleRules = input<VortexBlotterRowStyleRule[]>([]);
+
   readonly wsUrlOptions = [
     'http://localhost:8080/websocket',
     'ws://localhost:8080/ws',
@@ -75,6 +91,12 @@ export class VortexBlotter {
   readonly tableNameOptions = ['fx_executions', 'demo', 'main'] as const;
 
   private readonly viewerRef = viewChild<ElementRef<HTMLElement>>('viewer');
+
+  /** Current Perspective table after a successful `viewer.load` (for row styling). */
+  private readonly loadedTable = signal<Table | null>(null);
+
+  private readonly destroyRef = inject(DestroyRef);
+  private rowStyleCleanup: (() => Promise<void>) | null = null;
 
   readonly internalUrl = signal('http://localhost:8080/websocket');
   readonly internalTable = signal('fx_executions');
@@ -123,6 +145,7 @@ export class VortexBlotter {
 
       if (partialParent) {
         this.loadSeq += 1;
+        this.loadedTable.set(null);
         this.loadError.set(
           'Provide both tableName and websocketUrl for a live server, or omit both for demo data.',
         );
@@ -152,6 +175,40 @@ export class VortexBlotter {
         this.toWebSocketUrl(this.internalUrl()),
       );
     });
+
+    effect(() => {
+      const rules = this.rowStyleRules();
+      const viewer = this.viewerRef()?.nativeElement;
+      const tbl = this.loadedTable();
+      if (!viewer || !tbl) {
+        void this.disposeRowStyles();
+        return;
+      }
+      void this.syncRowStyles(viewer, tbl, rules);
+    });
+
+    this.destroyRef.onDestroy(() => {
+      void this.disposeRowStyles();
+    });
+  }
+
+  private async disposeRowStyles(): Promise<void> {
+    if (this.rowStyleCleanup) {
+      await this.rowStyleCleanup();
+      this.rowStyleCleanup = null;
+    }
+  }
+
+  private async syncRowStyles(
+    viewer: HTMLElement,
+    table: Table,
+    rules: VortexBlotterRowStyleRule[],
+  ): Promise<void> {
+    await this.disposeRowStyles();
+    if (rules.length === 0) {
+      return;
+    }
+    this.rowStyleCleanup = attachVortexBlotterRowStyles(viewer, table, rules);
   }
 
   connectFromPicker(): void {
@@ -182,6 +239,7 @@ export class VortexBlotter {
     this.loading.set(true);
     this.loadError.set(null);
     this.demoHint.set(null);
+    this.loadedTable.set(null);
 
     try {
       const worker = await perspective.worker();
@@ -199,6 +257,7 @@ export class VortexBlotter {
         return;
       }
 
+      this.loadedTable.set(table);
       this.demoHint.set(DEMO_HINT);
     } catch (err) {
       if (seq !== this.loadSeq) {
@@ -206,6 +265,7 @@ export class VortexBlotter {
       }
       const message = err instanceof Error ? err.message : String(err);
       this.loadError.set(message);
+      this.loadedTable.set(null);
     } finally {
       if (seq === this.loadSeq) {
         this.loading.set(false);
@@ -222,6 +282,7 @@ export class VortexBlotter {
     this.loading.set(true);
     this.loadError.set(null);
     this.demoHint.set(null);
+    this.loadedTable.set(null);
 
     try {
       const client = await perspective.websocket(wsUrl);
@@ -235,12 +296,18 @@ export class VortexBlotter {
       }
 
       await viewer.load(table);
+      if (seq !== this.loadSeq) {
+        return;
+      }
+
+      this.loadedTable.set(table);
     } catch (err) {
       if (seq !== this.loadSeq) {
         return;
       }
       const message = err instanceof Error ? err.message : String(err);
       this.loadError.set(message);
+      this.loadedTable.set(null);
     } finally {
       if (seq === this.loadSeq) {
         this.loading.set(false);
