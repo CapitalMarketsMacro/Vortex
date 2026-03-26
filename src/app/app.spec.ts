@@ -4,6 +4,9 @@ import { App } from './app';
 
 vi.mock('@perspective-dev/client', () => ({
   default: {
+    websocket: vi.fn().mockResolvedValue({
+      open_table: vi.fn().mockResolvedValue({}),
+    }),
     worker: vi.fn().mockResolvedValue({
       table: vi.fn().mockResolvedValue({}),
     }),

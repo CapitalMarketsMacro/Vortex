@@ -5,6 +5,9 @@ import { VortexBlotter } from './vortex-blotter';
 
 vi.mock('@perspective-dev/client', () => ({
   default: {
+    websocket: vi.fn().mockResolvedValue({
+      open_table: vi.fn().mockResolvedValue({}),
+    }),
     worker: vi.fn().mockResolvedValue({
       table: vi.fn().mockResolvedValue({}),
     }),
@@ -25,6 +28,7 @@ describe('VortexBlotter', () => {
 
     fixture = TestBed.createComponent(VortexBlotter);
     component = fixture.componentInstance;
+    fixture.detectChanges();
     await fixture.whenStable();
   });
 

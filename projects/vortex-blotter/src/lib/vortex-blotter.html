@@ -1,9 +1,70 @@
-<section class="blotter" aria-label="Vortex blotter">
+<section
+  class="blotter"
+  aria-label="Vortex blotter"
+  [attr.aria-busy]="loading()"
+>
   <header class="blotter-head">
     <span class="blotter-title">Blotter</span>
-    <span class="blotter-badge">Live</span>
+    <span class="blotter-badge">{{ statusBadge() }}</span>
   </header>
   <div class="blotter-body">
+    @if (loadError(); as err) {
+      <p class="blotter-error" role="alert">{{ err }}</p>
+    }
+    @if (!hasParentConfig() && demoHint(); as hint) {
+      <p class="blotter-info" role="status">{{ hint }}</p>
+    }
+    @if (!hasParentConfig()) {
+      <div class="blotter-setup">
+        <div class="blotter-field blotter-field--url">
+          <label class="blotter-label" [attr.for]="wsInputId">WebSocket URL</label>
+          <input
+            [id]="wsInputId"
+            type="text"
+            class="blotter-input"
+            [attr.list]="wsDatalistId"
+            [value]="internalUrl()"
+            (input)="onWsInput($event)"
+            spellcheck="false"
+            autocomplete="off"
+            placeholder="ws://host:port/path"
+          />
+          <datalist [id]="wsDatalistId">
+            @for (u of wsUrlOptions; track u) {
+              <option [value]="u"></option>
+            }
+          </datalist>
+        </div>
+        <div class="blotter-field">
+          <label class="blotter-label" [attr.for]="tableInputId">Table name</label>
+          <input
+            [id]="tableInputId"
+            type="text"
+            class="blotter-input"
+            [attr.list]="tableDatalistId"
+            [value]="internalTable()"
+            (input)="onTableInput($event)"
+            spellcheck="false"
+            autocomplete="off"
+            placeholder="Hosted table id"
+          />
+          <datalist [id]="tableDatalistId">
+            @for (t of tableNameOptions; track t) {
+              <option [value]="t"></option>
+            }
+          </datalist>
+        </div>
+        @if (!internalLive()) {
+          <button
+            type="button"
+            class="blotter-connect"
+            (click)="connectFromPicker()"
+          >
+            Connect to server
+          </button>
+        }
+      </div>
+    }
     <perspective-viewer
       #viewer
       class="perspective-host"
