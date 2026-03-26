@@ -6,6 +6,7 @@ import {
   DestroyRef,
   effect,
   ElementRef,
+  HostListener,
   inject,
   input,
   signal,
@@ -20,8 +21,27 @@ import {
   attachVortexBlotterRowStyles,
   type VortexBlotterRowStyleRule,
 } from './perspective-row-styles';
+import {
+  draftsToStyleRules,
+  type VortexBlotterRowEditorDraft,
+  type VortexBlotterRowStyleConditionOp,
+} from './row-style-editor';
 
-export type { VortexBlotterRowStyleRule };
+export {
+  attachVortexBlotterRowStyles,
+  parseVortexBlotterNumericValue,
+  resolveVortexBlotterFontSize,
+  resolveVortexBlotterFontWeight,
+} from './perspective-row-styles';
+export type {
+  VortexBlotterRowFontSizePreset,
+  VortexBlotterRowFontWeightPreset,
+  VortexBlotterRowStyleRule,
+} from './perspective-row-styles';
+export type {
+  VortexBlotterRowEditorDraft,
+  VortexBlotterRowStyleConditionOp,
+} from './row-style-editor';
 
 type PerspectiveViewerEl = HTMLElement & {
   load: (table: unknown) => Promise<void>;
@@ -64,11 +84,16 @@ const DEMO_HINT =
 })
 export class VortexBlotter {
   private static idSeq = 0;
+  private static editorRowSeq = 0;
   private readonly fieldUid = `vb-${VortexBlotter.idSeq++}`;
   readonly wsInputId = `vortex-blotter-ws-${this.fieldUid}`;
   readonly wsDatalistId = `vortex-blotter-ws-dl-${this.fieldUid}`;
   readonly tableInputId = `vortex-blotter-table-${this.fieldUid}`;
   readonly tableDatalistId = `vortex-blotter-table-dl-${this.fieldUid}`;
+  readonly rowStyleEditorTitleId = `vortex-blotter-row-style-title-${this.fieldUid}`;
+  readonly rowStyleEditorPanelId = `vortex-blotter-row-style-panel-${this.fieldUid}`;
+  /** Shared datalist id for column name suggestions (from `Table.columns()`). */
+  readonly tableColumnDatalistId = `vortex-blotter-cols-${this.fieldUid}`;
 
   /** Hosted table name on the Perspective server; optional if using demo + local controls. */
   readonly tableName = input<string>('');
@@ -77,8 +102,9 @@ export class VortexBlotter {
   readonly websocketUrl = input<string>('');
 
   /**
-   * Style entire rows when `match` returns true for the value in `column`.
-   * Uses the datagrid’s regular-table `addStyleListener` API; earlier rules win per row.
+   * Programmatic row style rules. Merged with rules applied from the Row style editor
+   * (settings control). When several rules match, higher `order` wins (see
+   * `VortexBlotterRowStyleRule.order`).
    */
   readonly rowStyleRules = input<VortexBlotterRowStyleRule[]>([]);
 
@@ -90,10 +116,68 @@ export class VortexBlotter {
 
   readonly tableNameOptions = ['fx_executions', 'demo', 'main'] as const;
 
+  readonly conditionOpOptions: {
+    value: VortexBlotterRowStyleConditionOp;
+    label: string;
+  }[] = [
+    { value: 'eq', label: 'Equals' },
+    { value: 'neq', label: 'Not equals' },
+    { value: 'contains', label: 'Contains' },
+    { value: 'gt', label: 'Greater than' },
+    { value: 'gte', label: 'Greater or equal' },
+    { value: 'lt', label: 'Less than' },
+    { value: 'lte', label: 'Less or equal' },
+  ];
+
+  readonly editorFontSizeOptions: (VortexBlotterRowEditorDraft['fontSize'])[] = [
+    '',
+    'smaller',
+    'small',
+    'regular',
+    'large',
+    'extraLarge',
+    'xtraLarge',
+    'xtraLarger',
+  ];
+
+  readonly editorFontWeightOptions: (VortexBlotterRowEditorDraft['fontWeight'])[] =
+    [
+      '',
+      'thin',
+      'light',
+      'regular',
+      'medium',
+      'semiBold',
+      'bold',
+      'extraBold',
+      'black',
+    ];
+
   private readonly viewerRef = viewChild<ElementRef<HTMLElement>>('viewer');
+
+  readonly rowStyleEditorOpen = signal(false);
+
+  /** In-memory editor rows (with stable `id` for `@for` tracking). */
+  readonly editorRows = signal<
+    (VortexBlotterRowEditorDraft & { id: string })[]
+  >([]);
+
+  /** Rules compiled from the editor when the user clicks Apply. */
+  private readonly appliedEditorRules = signal<VortexBlotterRowStyleRule[]>([]);
+
+  private readonly mergedRowStyleRules = computed(() => [
+    ...this.rowStyleRules(),
+    ...this.appliedEditorRules(),
+  ]);
 
   /** Current Perspective table after a successful `viewer.load` (for row styling). */
   private readonly loadedTable = signal<Table | null>(null);
+
+  /**
+   * Column names from the loaded Perspective `Table` (`await table.columns()`), for the
+   * row style editor. Empty when no table is loaded or columns could not be read.
+   */
+  readonly tableColumnNames = signal<string[]>([]);
 
   private readonly destroyRef = inject(DestroyRef);
   private rowStyleCleanup: (() => Promise<void>) | null = null;
@@ -126,7 +210,14 @@ export class VortexBlotter {
     return 'Live';
   });
 
+  readonly columnFieldPlaceholder = computed(() =>
+    this.tableColumnNames().length > 0
+      ? 'Choose from list or type'
+      : 'Load a table for suggestions',
+  );
+
   private loadSeq = 0;
+  private columnsLoadSeq = 0;
 
   constructor() {
     effect(() => {
@@ -177,7 +268,7 @@ export class VortexBlotter {
     });
 
     effect(() => {
-      const rules = this.rowStyleRules();
+      const rules = this.mergedRowStyleRules();
       const viewer = this.viewerRef()?.nativeElement;
       const tbl = this.loadedTable();
       if (!viewer || !tbl) {
@@ -185,6 +276,11 @@ export class VortexBlotter {
         return;
       }
       void this.syncRowStyles(viewer, tbl, rules);
+    });
+
+    effect(() => {
+      const tbl = this.loadedTable();
+      void this.refreshTableColumnNames(tbl);
     });
 
     this.destroyRef.onDestroy(() => {
@@ -196,6 +292,28 @@ export class VortexBlotter {
     if (this.rowStyleCleanup) {
       await this.rowStyleCleanup();
       this.rowStyleCleanup = null;
+    }
+  }
+
+  private async refreshTableColumnNames(table: Table | null): Promise<void> {
+    const seq = ++this.columnsLoadSeq;
+    if (!table) {
+      if (seq === this.columnsLoadSeq) {
+        this.tableColumnNames.set([]);
+      }
+      return;
+    }
+    try {
+      const cols = await table.columns();
+      if (seq !== this.columnsLoadSeq) {
+        return;
+      }
+      const names = Array.isArray(cols) ? cols.map((c) => String(c)) : [];
+      this.tableColumnNames.set(names);
+    } catch {
+      if (seq === this.columnsLoadSeq) {
+        this.tableColumnNames.set([]);
+      }
     }
   }
 
@@ -221,6 +339,113 @@ export class VortexBlotter {
 
   onTableInput(event: Event): void {
     this.internalTable.set((event.target as HTMLInputElement).value);
+  }
+
+  openRowStyleEditor(): void {
+    if (this.editorRows().length === 0) {
+      this.editorRows.set([this.newEditorRow()]);
+    }
+    this.rowStyleEditorOpen.set(true);
+  }
+
+  closeRowStyleEditor(): void {
+    this.rowStyleEditorOpen.set(false);
+  }
+
+  applyRowStyleEditor(): void {
+    this.appliedEditorRules.set(draftsToStyleRules(this.editorRows()));
+  }
+
+  clearAppliedEditorRules(): void {
+    this.appliedEditorRules.set([]);
+  }
+
+  addEditorRow(): void {
+    this.editorRows.update((rows) => [...rows, this.newEditorRow()]);
+  }
+
+  removeEditorRow(id: string): void {
+    this.editorRows.update((rows) => rows.filter((r) => r.id !== id));
+  }
+
+  patchEditorRow(id: string, patch: Partial<VortexBlotterRowEditorDraft>): void {
+    this.editorRows.update((rows) =>
+      rows.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+    );
+  }
+
+  onEditorColumnInput(id: string, event: Event): void {
+    this.patchEditorRow(id, {
+      column: (event.target as HTMLInputElement).value,
+    });
+  }
+
+  onEditorValueInput(id: string, event: Event): void {
+    this.patchEditorRow(id, {
+      value: (event.target as HTMLInputElement).value,
+    });
+  }
+
+  onEditorOrderInput(id: string, event: Event): void {
+    const raw = (event.target as HTMLInputElement).value;
+    const n = Number(raw);
+    this.patchEditorRow(id, {
+      order: raw === '' || Number.isNaN(n) ? 0 : n,
+    });
+  }
+
+  onEditorBgInput(id: string, event: Event): void {
+    this.patchEditorRow(id, {
+      backgroundColor: (event.target as HTMLInputElement).value,
+    });
+  }
+
+  onEditorFgInput(id: string, event: Event): void {
+    this.patchEditorRow(id, {
+      color: (event.target as HTMLInputElement).value,
+    });
+  }
+
+  onEditorOpChange(id: string, event: Event): void {
+    this.patchEditorRow(id, {
+      op: (event.target as HTMLSelectElement).value as VortexBlotterRowStyleConditionOp,
+    });
+  }
+
+  onEditorFontSizeChange(id: string, event: Event): void {
+    const v = (event.target as HTMLSelectElement).value;
+    this.patchEditorRow(id, {
+      fontSize: v as VortexBlotterRowEditorDraft['fontSize'],
+    });
+  }
+
+  onEditorFontWeightChange(id: string, event: Event): void {
+    const v = (event.target as HTMLSelectElement).value;
+    this.patchEditorRow(id, {
+      fontWeight: v as VortexBlotterRowEditorDraft['fontWeight'],
+    });
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onDocumentEscape(event: KeyboardEvent): void {
+    if (event.key === 'Escape' && this.rowStyleEditorOpen()) {
+      event.preventDefault();
+      this.closeRowStyleEditor();
+    }
+  }
+
+  private newEditorRow(): VortexBlotterRowEditorDraft & { id: string } {
+    return {
+      id: `vb-er-${VortexBlotter.editorRowSeq++}`,
+      column: '',
+      op: 'eq',
+      value: '',
+      order: 100,
+      backgroundColor: '',
+      color: '',
+      fontSize: '',
+      fontWeight: '',
+    };
   }
 
   private toWebSocketUrl(url: string): string {

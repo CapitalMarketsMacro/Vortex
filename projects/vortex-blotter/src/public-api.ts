@@ -3,7 +3,6 @@
  */
 
 export * from './lib/vortex-blotter';
-export { attachVortexBlotterRowStyles } from './lib/perspective-row-styles';
 export {
   bootstrapVortexBlotterPerspective,
   VORTEX_BLOTTER_DEFAULT_WASM_ASSETS_BASE,

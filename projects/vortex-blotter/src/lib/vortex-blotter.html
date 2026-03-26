@@ -5,7 +5,31 @@
 >
   <header class="blotter-head">
     <span class="blotter-title">Blotter</span>
-    <span class="blotter-badge">{{ statusBadge() }}</span>
+    <div class="blotter-head-actions">
+      <span class="blotter-badge">{{ statusBadge() }}</span>
+      <button
+        type="button"
+        class="blotter-icon-btn"
+        (click)="openRowStyleEditor()"
+        [attr.aria-expanded]="rowStyleEditorOpen()"
+        [attr.aria-controls]="rowStyleEditorPanelId"
+        aria-haspopup="dialog"
+        aria-label="Row style rules"
+        title="Row style rules"
+      >
+        <svg
+          class="blotter-icon-btn__svg"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            fill="currentColor"
+            d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.07-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94L14.4 2.81a.5.5 0 0 0-.5-.43h-3.8a.5.5 0 0 0-.5.43l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.5.5 0 0 0-.6.22L2.74 8.87c-.14.23-.1.52.12.64l2.03 1.58c-.05.31-.08.63-.08.94s.02.63.08.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.12.22.37.31.6.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.27.43.5.43h3.8c.25 0 .46-.19.5-.43l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.23.09.48 0 .6-.22l1.92-3.32c.12-.22.1-.51-.12-.64l-2.03-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"
+          />
+        </svg>
+      </button>
+    </div>
   </header>
   <div class="blotter-body">
     @if (loadError(); as err) {
@@ -65,10 +89,202 @@
         }
       </div>
     }
-    <perspective-viewer
-      #viewer
-      class="perspective-host"
-      theme="Pro Dark"
-    ></perspective-viewer>
+    <div class="blotter-viewer-wrap">
+      <perspective-viewer
+        #viewer
+        class="perspective-host"
+        theme="Pro Dark"
+      ></perspective-viewer>
+    </div>
   </div>
+
+  @if (rowStyleEditorOpen()) {
+    <div
+      class="row-style-editor-backdrop"
+      role="presentation"
+      (click)="closeRowStyleEditor()"
+    ></div>
+    <div
+      class="row-style-editor-panel"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-labelledby]="rowStyleEditorTitleId"
+      [id]="rowStyleEditorPanelId"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="row-style-editor-head">
+        <h2 class="row-style-editor-title" [id]="rowStyleEditorTitleId">
+          Row style editor
+        </h2>
+        <p class="row-style-editor-sub">
+          Rules here merge with <code>rowStyleRules</code> from the host. Higher
+          <strong>order</strong> wins when several rules match the same row.
+          Column names are inferred from the loaded table when possible; use the field
+          suggestions or type a column name.
+        </p>
+      </div>
+
+      <div class="row-style-editor-table-wrap">
+        <table class="row-style-editor-table">
+          <thead>
+            <tr>
+              <th scope="col">Column</th>
+              <th scope="col">Condition</th>
+              <th scope="col">Value</th>
+              <th scope="col">Order</th>
+              <th scope="col">Background</th>
+              <th scope="col">Text</th>
+              <th scope="col">Size</th>
+              <th scope="col">Weight</th>
+              <th scope="col"><span class="row-style-editor-sr-only">Remove</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of editorRows(); track row.id) {
+              <tr>
+                <td>
+                  <input
+                    type="text"
+                    class="blotter-input row-style-editor-input"
+                    [attr.list]="
+                      tableColumnNames().length > 0 ? tableColumnDatalistId : null
+                    "
+                    [value]="row.column"
+                    (input)="onEditorColumnInput(row.id, $event)"
+                    [placeholder]="columnFieldPlaceholder()"
+                    spellcheck="false"
+                    autocomplete="off"
+                  />
+                </td>
+                <td>
+                  <select
+                    class="blotter-input row-style-editor-select"
+                    [value]="row.op"
+                    (change)="onEditorOpChange(row.id, $event)"
+                  >
+                    @for (o of conditionOpOptions; track o.value) {
+                      <option [value]="o.value">{{ o.label }}</option>
+                    }
+                  </select>
+                </td>
+                <td>
+                  <input
+                    type="text"
+                    class="blotter-input row-style-editor-input"
+                    [value]="row.value"
+                    (input)="onEditorValueInput(row.id, $event)"
+                    placeholder="Compare value"
+                    spellcheck="false"
+                    autocomplete="off"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    class="blotter-input row-style-editor-input row-style-editor-input--narrow"
+                    [value]="row.order"
+                    (input)="onEditorOrderInput(row.id, $event)"
+                    step="1"
+                    title="Precedence when multiple rules match"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="text"
+                    class="blotter-input row-style-editor-input"
+                    [value]="row.backgroundColor"
+                    (input)="onEditorBgInput(row.id, $event)"
+                    placeholder="#rrggbb"
+                    spellcheck="false"
+                    autocomplete="off"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="text"
+                    class="blotter-input row-style-editor-input"
+                    [value]="row.color"
+                    (input)="onEditorFgInput(row.id, $event)"
+                    placeholder="#rrggbb"
+                    spellcheck="false"
+                    autocomplete="off"
+                  />
+                </td>
+                <td>
+                  <select
+                    class="blotter-input row-style-editor-select"
+                    [value]="row.fontSize"
+                    (change)="onEditorFontSizeChange(row.id, $event)"
+                  >
+                    @for (sz of editorFontSizeOptions; track sz) {
+                      <option [value]="sz">
+                        {{ sz === '' ? '—' : sz }}
+                      </option>
+                    }
+                  </select>
+                </td>
+                <td>
+                  <select
+                    class="blotter-input row-style-editor-select"
+                    [value]="row.fontWeight"
+                    (change)="onEditorFontWeightChange(row.id, $event)"
+                  >
+                    @for (w of editorFontWeightOptions; track w) {
+                      <option [value]="w">
+                        {{ w === '' ? '—' : w }}
+                      </option>
+                    }
+                  </select>
+                </td>
+                <td class="row-style-editor-actions">
+                  <button
+                    type="button"
+                    class="row-style-editor-remove"
+                    (click)="removeEditorRow(row.id)"
+                    title="Remove rule"
+                  >
+                    ×
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="row-style-editor-toolbar">
+        <button type="button" class="blotter-connect" (click)="addEditorRow()">
+          Add rule
+        </button>
+      </div>
+
+      @if (tableColumnNames().length > 0) {
+        <datalist [id]="tableColumnDatalistId">
+          @for (col of tableColumnNames(); track col) {
+            <option [value]="col"></option>
+          }
+        </datalist>
+      }
+
+      <div class="row-style-editor-footer">
+        <button type="button" class="blotter-connect" (click)="applyRowStyleEditor()">
+          Apply row styles
+        </button>
+        <button
+          type="button"
+          class="row-style-editor-btn-secondary"
+          (click)="clearAppliedEditorRules()"
+        >
+          Clear applied (editor)
+        </button>
+        <button
+          type="button"
+          class="row-style-editor-btn-secondary"
+          (click)="closeRowStyleEditor()"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  }
 </section>
