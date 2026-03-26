@@ -18,9 +18,22 @@ import '@perspective-dev/viewer-datagrid';
 import '@perspective-dev/viewer-d3fc';
 
 import {
+  deleteLayoutFromStorage,
+  listLayoutNames,
+  loadLayoutFromStorage,
+  sanitizeLayoutName,
+  saveLayoutToStorage,
+  type VortexBlotterSavedLayoutV1,
+} from './layout-storage';
+import { attachVortexBlotterColumnHeaderLabels } from './perspective-column-headers';
+import {
   attachVortexBlotterRowStyles,
   type VortexBlotterRowStyleRule,
 } from './perspective-row-styles';
+import {
+  applyPerspectiveLayoutToken,
+  clonePerspectiveTokenForJson,
+} from './perspective-layout-token';
 import {
   draftsToStyleRules,
   type VortexBlotterRowEditorDraft,
@@ -28,7 +41,20 @@ import {
 } from './row-style-editor';
 
 export {
+  isVortexBlotterSavedLayoutV1,
+  VORTEX_BLOTTER_LAYOUTS_STORAGE_KEY,
+  deleteLayoutFromStorage,
+  listLayoutNames,
+  loadLayoutFromStorage,
+  readLayoutMap,
+  sanitizeLayoutName,
+  saveLayoutToStorage,
+} from './layout-storage';
+export type { VortexBlotterSavedLayoutV1 } from './layout-storage';
+export { attachVortexBlotterColumnHeaderLabels } from './perspective-column-headers';
+export {
   attachVortexBlotterRowStyles,
+  findPerspectiveDatagrid,
   parseVortexBlotterNumericValue,
   resolveVortexBlotterFontSize,
   resolveVortexBlotterFontWeight,
@@ -45,6 +71,9 @@ export type {
 
 type PerspectiveViewerEl = HTMLElement & {
   load: (table: unknown) => Promise<void>;
+  save?: () => Promise<unknown>;
+  restore?: (config: unknown) => Promise<unknown>;
+  resize?: (force?: boolean | null) => Promise<unknown>;
 };
 
 const DEMO_ROWS = [
@@ -85,6 +114,7 @@ const DEMO_HINT =
 export class VortexBlotter {
   private static idSeq = 0;
   private static editorRowSeq = 0;
+  private static columnHeaderRowSeq = 0;
   private readonly fieldUid = `vb-${VortexBlotter.idSeq++}`;
   readonly wsInputId = `vortex-blotter-ws-${this.fieldUid}`;
   readonly wsDatalistId = `vortex-blotter-ws-dl-${this.fieldUid}`;
@@ -92,8 +122,13 @@ export class VortexBlotter {
   readonly tableDatalistId = `vortex-blotter-table-dl-${this.fieldUid}`;
   readonly rowStyleEditorTitleId = `vortex-blotter-row-style-title-${this.fieldUid}`;
   readonly rowStyleEditorPanelId = `vortex-blotter-row-style-panel-${this.fieldUid}`;
+  readonly columnHeaderEditorTitleId = `vortex-blotter-col-headers-title-${this.fieldUid}`;
+  readonly columnHeaderEditorPanelId = `vortex-blotter-col-headers-panel-${this.fieldUid}`;
   /** Shared datalist id for column name suggestions (from `Table.columns()`). */
   readonly tableColumnDatalistId = `vortex-blotter-cols-${this.fieldUid}`;
+  readonly layoutManagerTitleId = `vortex-blotter-layouts-title-${this.fieldUid}`;
+  readonly layoutManagerPanelId = `vortex-blotter-layouts-panel-${this.fieldUid}`;
+  readonly layoutManagerNameInputId = `vortex-blotter-layout-name-${this.fieldUid}`;
 
   /** Hosted table name on the Perspective server; optional if using demo + local controls. */
   readonly tableName = input<string>('');
@@ -107,6 +142,12 @@ export class VortexBlotter {
    * `VortexBlotterRowStyleRule.order`).
    */
   readonly rowStyleRules = input<VortexBlotterRowStyleRule[]>([]);
+
+  /**
+   * Friendly display names for data column headers (keys = schema column names from
+   * `Table.columns()`). Merged with labels applied from the column header editor.
+   */
+  readonly columnHeaderLabels = input<Record<string, string>>({});
 
   readonly wsUrlOptions = [
     'http://localhost:8080/websocket',
@@ -170,6 +211,14 @@ export class VortexBlotter {
     ...this.appliedEditorRules(),
   ]);
 
+  /** Labels from the column header editor (Apply). */
+  private readonly appliedColumnHeaderLabels = signal<Record<string, string>>({});
+
+  private readonly mergedColumnHeaderLabels = computed(() => ({
+    ...this.columnHeaderLabels(),
+    ...this.appliedColumnHeaderLabels(),
+  }));
+
   /** Current Perspective table after a successful `viewer.load` (for row styling). */
   private readonly loadedTable = signal<Table | null>(null);
 
@@ -181,6 +230,18 @@ export class VortexBlotter {
 
   private readonly destroyRef = inject(DestroyRef);
   private rowStyleCleanup: (() => Promise<void>) | null = null;
+  private columnHeaderCleanup: (() => Promise<void>) | null = null;
+
+  readonly columnHeaderEditorOpen = signal(false);
+
+  readonly columnHeaderRows = signal<
+    { id: string; columnKey: string; displayName: string }[]
+  >([]);
+
+  readonly layoutManagerOpen = signal(false);
+  readonly layoutSaveName = signal('');
+  readonly layoutStatusMessage = signal<string | null>(null);
+  readonly savedLayoutNames = signal<string[]>([]);
 
   readonly internalUrl = signal('http://localhost:8080/websocket');
   readonly internalTable = signal('fx_executions');
@@ -283,8 +344,20 @@ export class VortexBlotter {
       void this.refreshTableColumnNames(tbl);
     });
 
+    effect(() => {
+      const labels = this.mergedColumnHeaderLabels();
+      const viewer = this.viewerRef()?.nativeElement;
+      const tbl = this.loadedTable();
+      if (!viewer || !tbl) {
+        void this.disposeColumnHeaderLabels();
+        return;
+      }
+      void this.syncColumnHeaderLabels(viewer, tbl, labels);
+    });
+
     this.destroyRef.onDestroy(() => {
       void this.disposeRowStyles();
+      void this.disposeColumnHeaderLabels();
     });
   }
 
@@ -292,6 +365,13 @@ export class VortexBlotter {
     if (this.rowStyleCleanup) {
       await this.rowStyleCleanup();
       this.rowStyleCleanup = null;
+    }
+  }
+
+  private async disposeColumnHeaderLabels(): Promise<void> {
+    if (this.columnHeaderCleanup) {
+      await this.columnHeaderCleanup();
+      this.columnHeaderCleanup = null;
     }
   }
 
@@ -329,6 +409,22 @@ export class VortexBlotter {
     this.rowStyleCleanup = attachVortexBlotterRowStyles(viewer, table, rules);
   }
 
+  private async syncColumnHeaderLabels(
+    viewer: HTMLElement,
+    table: Table,
+    labels: Record<string, string>,
+  ): Promise<void> {
+    await this.disposeColumnHeaderLabels();
+    if (Object.keys(labels).length === 0) {
+      return;
+    }
+    this.columnHeaderCleanup = attachVortexBlotterColumnHeaderLabels(
+      viewer,
+      table,
+      labels,
+    );
+  }
+
   connectFromPicker(): void {
     this.internalLive.set(true);
   }
@@ -342,6 +438,8 @@ export class VortexBlotter {
   }
 
   openRowStyleEditor(): void {
+    this.layoutManagerOpen.set(false);
+    this.columnHeaderEditorOpen.set(false);
     if (this.editorRows().length === 0) {
       this.editorRows.set([this.newEditorRow()]);
     }
@@ -350,6 +448,219 @@ export class VortexBlotter {
 
   closeRowStyleEditor(): void {
     this.rowStyleEditorOpen.set(false);
+  }
+
+  openColumnHeaderEditor(): void {
+    this.layoutManagerOpen.set(false);
+    this.rowStyleEditorOpen.set(false);
+    if (this.columnHeaderRows().length === 0) {
+      this.columnHeaderRows.set([this.newColumnHeaderRow()]);
+    }
+    this.columnHeaderEditorOpen.set(true);
+  }
+
+  closeColumnHeaderEditor(): void {
+    this.columnHeaderEditorOpen.set(false);
+  }
+
+  openLayoutManager(): void {
+    this.rowStyleEditorOpen.set(false);
+    this.columnHeaderEditorOpen.set(false);
+    this.layoutStatusMessage.set(null);
+    this.refreshSavedLayoutNames();
+    this.layoutManagerOpen.set(true);
+  }
+
+  closeLayoutManager(): void {
+    this.layoutManagerOpen.set(false);
+  }
+
+  onLayoutSaveNameInput(event: Event): void {
+    this.layoutSaveName.set((event.target as HTMLInputElement).value);
+  }
+
+  refreshSavedLayoutNames(): void {
+    this.savedLayoutNames.set(listLayoutNames());
+  }
+
+  async saveCurrentLayoutToStorage(): Promise<void> {
+    this.layoutStatusMessage.set(null);
+    const name = sanitizeLayoutName(this.layoutSaveName());
+    if (!name) {
+      this.layoutStatusMessage.set('Enter a name for this layout.');
+      return;
+    }
+    try {
+      const snapshot = await this.collectLayoutSnapshot();
+      saveLayoutToStorage(name, snapshot);
+      this.refreshSavedLayoutNames();
+      this.layoutStatusMessage.set(`Saved layout “${name}”.`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.layoutStatusMessage.set(msg);
+    }
+  }
+
+  async loadLayoutByName(name: string): Promise<void> {
+    this.layoutStatusMessage.set(null);
+    const layout = loadLayoutFromStorage(name);
+    if (!layout) {
+      this.layoutStatusMessage.set(`Layout “${name}” was not found.`);
+      this.refreshSavedLayoutNames();
+      return;
+    }
+    try {
+      const perspectiveFailed = await this.applyLayoutSnapshot(layout);
+      this.layoutStatusMessage.set(
+        perspectiveFailed
+          ? `Loaded “${name}” (row styles & headers; saved Perspective view could not be restored).`
+          : `Loaded layout “${name}”.`,
+      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.layoutStatusMessage.set(msg);
+    }
+  }
+
+  deleteLayoutByName(name: string): void {
+    this.layoutStatusMessage.set(null);
+    deleteLayoutFromStorage(name);
+    this.refreshSavedLayoutNames();
+    this.layoutStatusMessage.set(`Removed layout “${name}”.`);
+  }
+
+  private async collectLayoutSnapshot(): Promise<VortexBlotterSavedLayoutV1> {
+    const viewer = this.viewerRef()?.nativeElement as PerspectiveViewerEl | undefined;
+    let perspective: unknown = null;
+    if (viewer && typeof viewer.save === 'function') {
+      try {
+        const raw = await viewer.save();
+        perspective = clonePerspectiveTokenForJson(raw);
+      } catch {
+        perspective = null;
+      }
+    }
+    const rowStyleEditorRows = this.editorRows().map(
+      ({ id: _id, ...rest }) => rest,
+    );
+    const columnHeaderRows = this.columnHeaderRows().map(
+      ({ id: _id, ...rest }) => rest,
+    );
+    return {
+      version: 1,
+      perspective,
+      rowStyleEditorRows,
+      columnHeaderRows,
+    };
+  }
+
+  /**
+   * @returns `true` if Perspective `restore` was attempted but failed (row styles still apply).
+   * @see https://perspective-dev.github.io/guide/how_to/javascript/save_restore.html
+   */
+  private async applyLayoutSnapshot(
+    layout: VortexBlotterSavedLayoutV1,
+  ): Promise<boolean> {
+    const viewer = this.viewerRef()?.nativeElement as PerspectiveViewerEl | undefined;
+    let perspectiveFailed = false;
+    if (viewer && layout.perspective != null) {
+      perspectiveFailed = await applyPerspectiveLayoutToken(
+        viewer,
+        layout.perspective,
+        this.loadedTable(),
+      );
+    }
+
+    this.editorRows.set(
+      layout.rowStyleEditorRows.map((d) => ({
+        ...d,
+        id: `vb-er-${VortexBlotter.editorRowSeq++}`,
+      })),
+    );
+    this.columnHeaderRows.set(
+      layout.columnHeaderRows.map((r) => ({
+        ...r,
+        id: `vb-ch-${VortexBlotter.columnHeaderRowSeq++}`,
+      })),
+    );
+    this.applyRowStyleEditor();
+    this.applyColumnHeaderEditor();
+    return perspectiveFailed;
+  }
+
+  applyColumnHeaderEditor(): void {
+    this.appliedColumnHeaderLabels.set(this.columnHeaderRowsToRecord());
+  }
+
+  clearAppliedColumnHeaderLabels(): void {
+    this.appliedColumnHeaderLabels.set({});
+  }
+
+  seedColumnHeaderRowsFromTable(): void {
+    const cols = this.tableColumnNames();
+    if (cols.length === 0) {
+      return;
+    }
+    this.columnHeaderRows.set(
+      cols.map((c) => ({
+        id: `vb-ch-${VortexBlotter.columnHeaderRowSeq++}`,
+        columnKey: c,
+        displayName: c,
+      })),
+    );
+  }
+
+  addColumnHeaderRow(): void {
+    this.columnHeaderRows.update((rows) => [...rows, this.newColumnHeaderRow()]);
+  }
+
+  removeColumnHeaderRow(id: string): void {
+    this.columnHeaderRows.update((rows) => rows.filter((r) => r.id !== id));
+  }
+
+  patchColumnHeaderRow(
+    id: string,
+    patch: Partial<{ columnKey: string; displayName: string }>,
+  ): void {
+    this.columnHeaderRows.update((rows) =>
+      rows.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+    );
+  }
+
+  onColumnHeaderKeyInput(id: string, event: Event): void {
+    this.patchColumnHeaderRow(id, {
+      columnKey: (event.target as HTMLInputElement).value,
+    });
+  }
+
+  onColumnHeaderDisplayInput(id: string, event: Event): void {
+    this.patchColumnHeaderRow(id, {
+      displayName: (event.target as HTMLInputElement).value,
+    });
+  }
+
+  private columnHeaderRowsToRecord(): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const r of this.columnHeaderRows()) {
+      const k = r.columnKey.trim();
+      const d = r.displayName.trim();
+      if (k && d) {
+        out[k] = d;
+      }
+    }
+    return out;
+  }
+
+  private newColumnHeaderRow(): {
+    id: string;
+    columnKey: string;
+    displayName: string;
+  } {
+    return {
+      id: `vb-ch-${VortexBlotter.columnHeaderRowSeq++}`,
+      columnKey: '',
+      displayName: '',
+    };
   }
 
   applyRowStyleEditor(): void {
@@ -428,7 +739,20 @@ export class VortexBlotter {
 
   @HostListener('document:keydown', ['$event'])
   onDocumentEscape(event: KeyboardEvent): void {
-    if (event.key === 'Escape' && this.rowStyleEditorOpen()) {
+    if (event.key !== 'Escape') {
+      return;
+    }
+    if (this.layoutManagerOpen()) {
+      event.preventDefault();
+      this.closeLayoutManager();
+      return;
+    }
+    if (this.columnHeaderEditorOpen()) {
+      event.preventDefault();
+      this.closeColumnHeaderEditor();
+      return;
+    }
+    if (this.rowStyleEditorOpen()) {
       event.preventDefault();
       this.closeRowStyleEditor();
     }

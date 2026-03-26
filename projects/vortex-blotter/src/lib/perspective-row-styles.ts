@@ -203,7 +203,8 @@ type DatagridEl = HTMLElement & { regular_table?: RegularTableLike };
 /** Marks cells we styled so we can clear overrides on the next paint. */
 const VORTEX_ROW_STYLE_ATTR = 'data-vortex-blotter-row-style';
 
-function findPerspectiveDatagrid(viewer: HTMLElement): DatagridEl | null {
+/** Locates the datagrid plugin inside a loaded `perspective-viewer` (for extensions). */
+export function findPerspectiveDatagrid(viewer: HTMLElement): DatagridEl | null {
   const direct =
     viewer.shadowRoot?.querySelector('perspective-viewer-datagrid') ??
     viewer.querySelector('perspective-viewer-datagrid');

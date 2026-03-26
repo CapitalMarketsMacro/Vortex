@@ -29,6 +29,50 @@
           />
         </svg>
       </button>
+      <button
+        type="button"
+        class="blotter-icon-btn"
+        (click)="openColumnHeaderEditor()"
+        [attr.aria-expanded]="columnHeaderEditorOpen()"
+        [attr.aria-controls]="columnHeaderEditorPanelId"
+        aria-haspopup="dialog"
+        aria-label="Column header names"
+        title="Column header names"
+      >
+        <svg
+          class="blotter-icon-btn__svg"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            fill="currentColor"
+            d="M3 5v14h18V5H3zm16 2v1H5V7h14zm0 4v4H5v-4h14zm0 6v1H5v-1h14z"
+          />
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="blotter-icon-btn"
+        (click)="openLayoutManager()"
+        [attr.aria-expanded]="layoutManagerOpen()"
+        [attr.aria-controls]="layoutManagerPanelId"
+        aria-haspopup="dialog"
+        aria-label="Save or load layouts"
+        title="Layouts (save / load)"
+      >
+        <svg
+          class="blotter-icon-btn__svg"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            fill="currentColor"
+            d="M17 3H5c-1.11 0-2 .9-2 2v14h4v-4h10V5c0-1.1-.9-2-2-2zm-5 12h-2v-2h2v2zm0-4h-2V5h2v6z"
+          />
+        </svg>
+      </button>
     </div>
   </header>
   <div class="blotter-body">
@@ -258,14 +302,6 @@
         </button>
       </div>
 
-      @if (tableColumnNames().length > 0) {
-        <datalist [id]="tableColumnDatalistId">
-          @for (col of tableColumnNames(); track col) {
-            <option [value]="col"></option>
-          }
-        </datalist>
-      }
-
       <div class="row-style-editor-footer">
         <button type="button" class="blotter-connect" (click)="applyRowStyleEditor()">
           Apply row styles
@@ -286,5 +322,222 @@
         </button>
       </div>
     </div>
+  }
+
+  @if (columnHeaderEditorOpen()) {
+    <div
+      class="row-style-editor-backdrop"
+      role="presentation"
+      (click)="closeColumnHeaderEditor()"
+    ></div>
+    <div
+      class="row-style-editor-panel row-style-editor-panel--column-headers"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-labelledby]="columnHeaderEditorTitleId"
+      [id]="columnHeaderEditorPanelId"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="row-style-editor-head">
+        <h2 class="row-style-editor-title" [id]="columnHeaderEditorTitleId">
+          Column header names
+        </h2>
+        <p class="row-style-editor-sub">
+          Map each <strong>schema</strong> column name (from the table) to the text shown
+          in the grid header. Row style rules and filters still use schema names.
+        </p>
+      </div>
+
+      <div class="row-style-editor-table-wrap">
+        <table class="row-style-editor-table">
+          <thead>
+            <tr>
+              <th scope="col">Schema column</th>
+              <th scope="col">Header display</th>
+              <th scope="col"><span class="row-style-editor-sr-only">Remove</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of columnHeaderRows(); track row.id) {
+              <tr>
+                <td>
+                  <input
+                    type="text"
+                    class="blotter-input row-style-editor-input"
+                    [attr.list]="
+                      tableColumnNames().length > 0 ? tableColumnDatalistId : null
+                    "
+                    [value]="row.columnKey"
+                    (input)="onColumnHeaderKeyInput(row.id, $event)"
+                    placeholder="e.g. Quantity"
+                    spellcheck="false"
+                    autocomplete="off"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="text"
+                    class="blotter-input row-style-editor-input"
+                    [value]="row.displayName"
+                    (input)="onColumnHeaderDisplayInput(row.id, $event)"
+                    placeholder="e.g. Qty"
+                    spellcheck="false"
+                    autocomplete="off"
+                  />
+                </td>
+                <td class="row-style-editor-actions">
+                  <button
+                    type="button"
+                    class="row-style-editor-remove"
+                    (click)="removeColumnHeaderRow(row.id)"
+                    title="Remove row"
+                  >
+                    ×
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="row-style-editor-toolbar">
+        <button type="button" class="blotter-connect" (click)="addColumnHeaderRow()">
+          Add row
+        </button>
+        <button
+          type="button"
+          class="row-style-editor-btn-secondary"
+          (click)="seedColumnHeaderRowsFromTable()"
+          [disabled]="tableColumnNames().length === 0"
+          title="Fill one row per loaded column"
+        >
+          Fill from table
+        </button>
+      </div>
+
+      <div class="row-style-editor-footer">
+        <button type="button" class="blotter-connect" (click)="applyColumnHeaderEditor()">
+          Apply header names
+        </button>
+        <button
+          type="button"
+          class="row-style-editor-btn-secondary"
+          (click)="clearAppliedColumnHeaderLabels()"
+        >
+          Clear applied (editor)
+        </button>
+        <button
+          type="button"
+          class="row-style-editor-btn-secondary"
+          (click)="closeColumnHeaderEditor()"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (layoutManagerOpen()) {
+    <div
+      class="row-style-editor-backdrop"
+      role="presentation"
+      (click)="closeLayoutManager()"
+    ></div>
+    <div
+      class="row-style-editor-panel row-style-editor-panel--layouts"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-labelledby]="layoutManagerTitleId"
+      [id]="layoutManagerPanelId"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="row-style-editor-head">
+        <h2 class="row-style-editor-title" [id]="layoutManagerTitleId">
+          Layouts
+        </h2>
+        <p class="row-style-editor-sub">
+          Save the current <strong>Perspective</strong> view (sort, filter, columns,
+          pivots, etc.), <strong>row style</strong> editor rules, and
+          <strong>column header</strong> names to this browser’s
+          <code>localStorage</code>. Host <code>rowStyleRules</code> are not included.
+        </p>
+      </div>
+
+      <div class="layout-manager-save">
+        <label class="blotter-label" [attr.for]="layoutManagerNameInputId"
+          >New layout name</label
+        >
+        <div class="layout-manager-save-row">
+          <input
+            [id]="layoutManagerNameInputId"
+            type="text"
+            class="blotter-input"
+            [value]="layoutSaveName()"
+            (input)="onLayoutSaveNameInput($event)"
+            placeholder="e.g. My desk view"
+            spellcheck="false"
+            autocomplete="off"
+            maxlength="128"
+          />
+          <button
+            type="button"
+            class="blotter-connect"
+            (click)="saveCurrentLayoutToStorage()"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+
+      @if (layoutStatusMessage(); as lm) {
+        <p class="layout-manager-status" role="status">{{ lm }}</p>
+      }
+
+      <div class="layout-manager-saved-head">Saved layouts</div>
+      <ul class="layout-manager-list">
+        @for (name of savedLayoutNames(); track name) {
+          <li class="layout-manager-item">
+            <span class="layout-manager-item-name">{{ name }}</span>
+            <div class="layout-manager-item-actions">
+              <button
+                type="button"
+                class="blotter-connect layout-manager-item-btn"
+                (click)="loadLayoutByName(name)"
+              >
+                Load
+              </button>
+              <button
+                type="button"
+                class="row-style-editor-btn-secondary layout-manager-item-btn"
+                (click)="deleteLayoutByName(name)"
+              >
+                Delete
+              </button>
+            </div>
+          </li>
+        } @empty {
+          <li class="layout-manager-empty">No layouts saved yet.</li>
+        }
+      </ul>
+
+      <div class="row-style-editor-footer">
+        <button
+          type="button"
+          class="row-style-editor-btn-secondary"
+          (click)="closeLayoutManager()"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (tableColumnNames().length > 0) {
+    <datalist [id]="tableColumnDatalistId">
+      @for (col of tableColumnNames(); track col) {
+        <option [value]="col"></option>
+      }
+    </datalist>
   }
 </section>
