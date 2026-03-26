@@ -6,7 +6,8 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "deps:list": "node scripts/list-npm-lock-dependencies.mjs"
   },
   "private": true,
   "packageManager": "npm@11.3.0",
