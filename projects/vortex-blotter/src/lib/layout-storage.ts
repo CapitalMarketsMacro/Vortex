@@ -1,4 +1,5 @@
 import type { VortexBlotterRowEditorDraft } from './row-style-editor';
+import type { VortexPerspectiveThemeChoice } from './perspective-theme-tokens';
 
 /** `localStorage` key for named layouts (sort, filters, row-style editor, column headers). */
 export const VORTEX_BLOTTER_LAYOUTS_STORAGE_KEY = 'vortex-blotter.layouts.v1';
@@ -14,6 +15,8 @@ export interface VortexBlotterSavedLayoutV1 {
   rowStyleEditorRows: VortexBlotterRowEditorDraft[];
   /** Column header editor rows (schema key → display text). */
   columnHeaderRows: { columnKey: string; displayName: string }[];
+  /** Perspective UI theme (grid + chrome); omitted in layouts saved before this field existed. */
+  perspectiveTheme?: VortexPerspectiveThemeChoice;
 }
 
 export function isVortexBlotterSavedLayoutV1(

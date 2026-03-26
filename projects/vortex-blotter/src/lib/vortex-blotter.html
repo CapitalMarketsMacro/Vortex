@@ -2,6 +2,7 @@
   class="blotter"
   aria-label="Vortex blotter"
   [attr.aria-busy]="loading()"
+  [attr.data-perspective-theme]="perspectiveThemeChoice()"
 >
   <div class="blotter-body">
     @if (loadError(); as err) {
@@ -41,6 +42,22 @@
         <div class="blotter-toolbar__details-inner">
           <div class="blotter-toolbar__tools">
             <span class="blotter-badge">{{ statusBadge() }}</span>
+            <div class="blotter-theme-field">
+              <label class="blotter-theme-label" [attr.for]="themeSelectId"
+                >Theme</label
+              >
+              <select
+                [id]="themeSelectId"
+                class="blotter-theme-select"
+                [value]="perspectiveThemeChoice()"
+                (change)="onPerspectiveThemeChange($event)"
+                title="Grid theme"
+              >
+                <option value="pro-dark">Pro Dark</option>
+                <option value="carbon">Carbon</option>
+                <option value="neo-quantum">Neo Quantum</option>
+              </select>
+            </div>
             <div class="blotter-head-actions">
               <button
                 type="button"
@@ -175,7 +192,7 @@
       <perspective-viewer
         #viewer
         class="perspective-host"
-        theme="Pro Dark"
+        [attr.theme]="perspectiveViewerThemeAttr()"
       ></perspective-viewer>
     </div>
   </div>

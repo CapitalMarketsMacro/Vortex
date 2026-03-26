@@ -35,10 +35,41 @@ import {
   clonePerspectiveTokenForJson,
 } from './perspective-layout-token';
 import {
+  injectVortexCustomPerspectiveThemesCss,
+  REGISTERED_PERSPECTIVE_THEME_NAMES,
+} from './perspective-theme-css';
+import {
+  parseVortexPerspectiveThemeChoice,
+  PERSPECTIVE_VIEWER_THEME_ATTR,
+  type VortexPerspectiveThemeChoice,
+  VORTEX_PERSPECTIVE_THEME_STORAGE_KEY,
+} from './perspective-theme-tokens';
+import {
   draftsToStyleRules,
   type VortexBlotterRowEditorDraft,
   type VortexBlotterRowStyleConditionOp,
 } from './row-style-editor';
+
+function readStoredPerspectiveTheme(): VortexPerspectiveThemeChoice {
+  if (typeof localStorage === 'undefined') {
+    return 'pro-dark';
+  }
+  try {
+    const v = localStorage.getItem(VORTEX_PERSPECTIVE_THEME_STORAGE_KEY);
+    return parseVortexPerspectiveThemeChoice(v) ?? 'pro-dark';
+  } catch {
+    /* ignore */
+  }
+  return 'pro-dark';
+}
+
+function persistPerspectiveThemeChoice(choice: VortexPerspectiveThemeChoice): void {
+  try {
+    localStorage.setItem(VORTEX_PERSPECTIVE_THEME_STORAGE_KEY, choice);
+  } catch {
+    /* ignore */
+  }
+}
 
 export {
   isVortexBlotterSavedLayoutV1,
@@ -74,6 +105,7 @@ type PerspectiveViewerEl = HTMLElement & {
   save?: () => Promise<unknown>;
   restore?: (config: unknown) => Promise<unknown>;
   resize?: (force?: boolean | null) => Promise<unknown>;
+  resetThemes?: (names: readonly string[]) => Promise<unknown>;
 };
 
 const DEMO_ROWS = [
@@ -130,6 +162,7 @@ export class VortexBlotter {
   readonly layoutManagerPanelId = `vortex-blotter-layouts-panel-${this.fieldUid}`;
   readonly layoutManagerNameInputId = `vortex-blotter-layout-name-${this.fieldUid}`;
   readonly toolbarDetailsPanelId = `vortex-blotter-toolbar-details-${this.fieldUid}`;
+  readonly themeSelectId = `vortex-blotter-theme-${this.fieldUid}`;
 
   /** Hosted table name on the Perspective server; optional if using demo + local controls. */
   readonly tableName = input<string>('');
@@ -247,6 +280,9 @@ export class VortexBlotter {
   /** Top toolbar (connection fields, hints) expanded vs one-line title + actions. */
   readonly toolbarExpanded = signal(true);
 
+  /** Perspective `theme` attribute: Pro Dark (default), Carbon, or Neo Quantum. */
+  readonly perspectiveThemeChoice = signal<VortexPerspectiveThemeChoice>('pro-dark');
+
   readonly internalUrl = signal('http://localhost:8080/websocket');
   readonly internalTable = signal('fx_executions');
   /** When true, load from internalUrl/internalTable instead of demo rows. */
@@ -281,6 +317,10 @@ export class VortexBlotter {
       : 'Expand toolbar',
   );
 
+  readonly perspectiveViewerThemeAttr = computed(
+    () => PERSPECTIVE_VIEWER_THEME_ATTR[this.perspectiveThemeChoice()],
+  );
+
   readonly columnFieldPlaceholder = computed(() =>
     this.tableColumnNames().length > 0
       ? 'Choose from list or type'
@@ -290,7 +330,20 @@ export class VortexBlotter {
   private loadSeq = 0;
   private columnsLoadSeq = 0;
 
+  private perspectiveThemesRegistered = false;
+
   constructor() {
+    injectVortexCustomPerspectiveThemesCss();
+    this.perspectiveThemeChoice.set(readStoredPerspectiveTheme());
+
+    effect(() => {
+      const host = this.viewerRef()?.nativeElement;
+      if (!host || this.perspectiveThemesRegistered) {
+        return;
+      }
+      void this.registerPerspectiveThemeList(host as PerspectiveViewerEl);
+    });
+
     effect(() => {
       const ref = this.viewerRef();
       const host = ref?.nativeElement;
@@ -451,6 +504,43 @@ export class VortexBlotter {
     this.toolbarExpanded.update((v) => !v);
   }
 
+  onPerspectiveThemeChange(event: Event): void {
+    const v = (event.target as HTMLSelectElement).value as VortexPerspectiveThemeChoice;
+    if (v !== 'pro-dark' && v !== 'carbon' && v !== 'neo-quantum') {
+      return;
+    }
+    this.perspectiveThemeChoice.set(v);
+    persistPerspectiveThemeChoice(v);
+  }
+
+  private async registerPerspectiveThemeList(
+    viewer: PerspectiveViewerEl,
+  ): Promise<void> {
+    if (this.perspectiveThemesRegistered) {
+      return;
+    }
+    if (typeof customElements === 'undefined') {
+      return;
+    }
+    await customElements.whenDefined('perspective-viewer');
+    injectVortexCustomPerspectiveThemesCss();
+    for (let i = 0; i < 24; i++) {
+      if (typeof viewer.resetThemes === 'function') {
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 25));
+    }
+    if (typeof viewer.resetThemes !== 'function') {
+      return;
+    }
+    try {
+      await viewer.resetThemes([...REGISTERED_PERSPECTIVE_THEME_NAMES]);
+      this.perspectiveThemesRegistered = true;
+    } catch {
+      /* ignore */
+    }
+  }
+
   openRowStyleEditor(): void {
     this.layoutManagerOpen.set(false);
     this.columnHeaderEditorOpen.set(false);
@@ -565,6 +655,7 @@ export class VortexBlotter {
       perspective,
       rowStyleEditorRows,
       columnHeaderRows,
+      perspectiveTheme: this.perspectiveThemeChoice(),
     };
   }
 
@@ -583,6 +674,12 @@ export class VortexBlotter {
         layout.perspective,
         this.loadedTable(),
       );
+    }
+
+    const savedTheme = parseVortexPerspectiveThemeChoice(layout.perspectiveTheme);
+    if (savedTheme !== undefined) {
+      this.perspectiveThemeChoice.set(savedTheme);
+      persistPerspectiveThemeChoice(savedTheme);
     }
 
     this.editorRows.set(
