@@ -23,7 +23,7 @@ export class App {
         console.log('notional', v, n, vl);
         return vl;
       },
-      backgroundColor: 'white',
+      backgroundColor: 'lightblue',
       color: 'darkblue',
       fontSize: 'large',
       fontWeight: 'extra-bold',
