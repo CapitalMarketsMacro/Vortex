@@ -22,6 +22,10 @@ function normalizeWasmBase(base: string): string {
  * e.g. input projects/vortex-blotter/assets/wasm, output assets/vortex-blotter/wasm.
  * Published consumers: use node_modules/vortex-blotter/wasm as the asset input path.
  *
+ * After upgrading `@perspective-dev/*`, run `npm run postinstall` (or
+ * `node scripts/sync-perspective-wasm.mjs`) so vendored `.wasm` files match the JS;
+ * mismatched WASM causes `WebAssembly.instantiate` / `__wbg_*` import errors.
+ *
  * Override wasmAssetsBaseUrl if you use a different output path (trailing slash optional).
  */
 export function bootstrapVortexBlotterPerspective(

@@ -204,7 +204,7 @@ export class VortexBlotter {
     { value: 'lte', label: 'Less or equal' },
   ];
 
-  readonly editorFontSizeOptions: (VortexBlotterRowEditorDraft['fontSize'])[] = [
+  readonly editorFontSizeOptions: VortexBlotterRowEditorDraft['fontSize'][] = [
     '',
     'smaller',
     'small',
@@ -215,27 +215,24 @@ export class VortexBlotter {
     'xtraLarger',
   ];
 
-  readonly editorFontWeightOptions: (VortexBlotterRowEditorDraft['fontWeight'])[] =
-    [
-      '',
-      'thin',
-      'light',
-      'regular',
-      'medium',
-      'semiBold',
-      'bold',
-      'extraBold',
-      'black',
-    ];
+  readonly editorFontWeightOptions: VortexBlotterRowEditorDraft['fontWeight'][] = [
+    '',
+    'thin',
+    'light',
+    'regular',
+    'medium',
+    'semiBold',
+    'bold',
+    'extraBold',
+    'black',
+  ];
 
   private readonly viewerRef = viewChild<ElementRef<HTMLElement>>('viewer');
 
   readonly rowStyleEditorOpen = signal(false);
 
   /** In-memory editor rows (with stable `id` for `@for` tracking). */
-  readonly editorRows = signal<
-    (VortexBlotterRowEditorDraft & { id: string })[]
-  >([]);
+  readonly editorRows = signal<(VortexBlotterRowEditorDraft & { id: string })[]>([]);
 
   /** Rules compiled from the editor when the user clicks Apply. */
   private readonly appliedEditorRules = signal<VortexBlotterRowStyleRule[]>([]);
@@ -268,9 +265,7 @@ export class VortexBlotter {
 
   readonly columnHeaderEditorOpen = signal(false);
 
-  readonly columnHeaderRows = signal<
-    { id: string; columnKey: string; displayName: string }[]
-  >([]);
+  readonly columnHeaderRows = signal<{ id: string; columnKey: string; displayName: string }[]>([]);
 
   readonly layoutManagerOpen = signal(false);
   readonly layoutSaveName = signal('');
@@ -283,8 +278,8 @@ export class VortexBlotter {
   /** Perspective `theme` attribute: Pro Dark (default), Carbon, or Neo Quantum. */
   readonly perspectiveThemeChoice = signal<VortexPerspectiveThemeChoice>('pro-dark');
 
-  readonly internalUrl = signal('http://localhost:8080/websocket');
-  readonly internalTable = signal('fx_executions');
+  readonly internalUrl = signal('http://localhost:4000/ws');
+  readonly internalTable = signal('RatesMarketData');
   /** When true, load from internalUrl/internalTable instead of demo rows. */
   readonly internalLive = signal(false);
 
@@ -312,9 +307,7 @@ export class VortexBlotter {
   });
 
   readonly toolbarToggleAriaLabel = computed(() =>
-    this.toolbarExpanded()
-      ? 'Collapse toolbar'
-      : 'Expand toolbar',
+    this.toolbarExpanded() ? 'Collapse toolbar' : 'Expand toolbar',
   );
 
   readonly perspectiveViewerThemeAttr = computed(
@@ -355,8 +348,7 @@ export class VortexBlotter {
       const parentName = this.tableName().trim();
       const parentUrl = this.websocketUrl().trim();
       const hasBothParent = parentName.length > 0 && parentUrl.length > 0;
-      const partialParent =
-        (parentName.length > 0) !== (parentUrl.length > 0);
+      const partialParent = parentName.length > 0 !== parentUrl.length > 0;
 
       if (partialParent) {
         this.loadSeq += 1;
@@ -370,11 +362,7 @@ export class VortexBlotter {
 
       if (hasBothParent) {
         this.loadError.set(null);
-        void this.bindRemoteTable(
-          viewer,
-          parentName,
-          this.toWebSocketUrl(parentUrl),
-        );
+        void this.bindRemoteTable(viewer, parentName, this.toWebSocketUrl(parentUrl));
         return;
       }
 
@@ -481,11 +469,7 @@ export class VortexBlotter {
     if (Object.keys(labels).length === 0) {
       return;
     }
-    this.columnHeaderCleanup = attachVortexBlotterColumnHeaderLabels(
-      viewer,
-      table,
-      labels,
-    );
+    this.columnHeaderCleanup = attachVortexBlotterColumnHeaderLabels(viewer, table, labels);
   }
 
   connectFromPicker(): void {
@@ -513,9 +497,7 @@ export class VortexBlotter {
     persistPerspectiveThemeChoice(v);
   }
 
-  private async registerPerspectiveThemeList(
-    viewer: PerspectiveViewerEl,
-  ): Promise<void> {
+  private async registerPerspectiveThemeList(viewer: PerspectiveViewerEl): Promise<void> {
     if (this.perspectiveThemesRegistered) {
       return;
     }
@@ -644,12 +626,8 @@ export class VortexBlotter {
         perspective = null;
       }
     }
-    const rowStyleEditorRows = this.editorRows().map(
-      ({ id: _id, ...rest }) => rest,
-    );
-    const columnHeaderRows = this.columnHeaderRows().map(
-      ({ id: _id, ...rest }) => rest,
-    );
+    const rowStyleEditorRows = this.editorRows().map(({ id: _id, ...rest }) => rest);
+    const columnHeaderRows = this.columnHeaderRows().map(({ id: _id, ...rest }) => rest);
     return {
       version: 1,
       perspective,
@@ -663,9 +641,7 @@ export class VortexBlotter {
    * @returns `true` if Perspective `restore` was attempted but failed (row styles still apply).
    * @see https://perspective-dev.github.io/guide/how_to/javascript/save_restore.html
    */
-  private async applyLayoutSnapshot(
-    layout: VortexBlotterSavedLayoutV1,
-  ): Promise<boolean> {
+  private async applyLayoutSnapshot(layout: VortexBlotterSavedLayoutV1): Promise<boolean> {
     const viewer = this.viewerRef()?.nativeElement as PerspectiveViewerEl | undefined;
     let perspectiveFailed = false;
     if (viewer && layout.perspective != null) {
@@ -733,9 +709,7 @@ export class VortexBlotter {
     id: string,
     patch: Partial<{ columnKey: string; displayName: string }>,
   ): void {
-    this.columnHeaderRows.update((rows) =>
-      rows.map((r) => (r.id === id ? { ...r, ...patch } : r)),
-    );
+    this.columnHeaderRows.update((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   }
 
   onColumnHeaderKeyInput(id: string, event: Event): void {
@@ -791,9 +765,7 @@ export class VortexBlotter {
   }
 
   patchEditorRow(id: string, patch: Partial<VortexBlotterRowEditorDraft>): void {
-    this.editorRows.update((rows) =>
-      rows.map((r) => (r.id === id ? { ...r, ...patch } : r)),
-    );
+    this.editorRows.update((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   }
 
   onEditorColumnInput(id: string, event: Event): void {
