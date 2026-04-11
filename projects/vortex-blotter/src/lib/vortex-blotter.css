@@ -516,6 +516,42 @@
   min-width: min(100%, 18rem);
 }
 
+.blotter-field--tables-api {
+  flex: 1 1 14rem;
+  min-width: min(100%, 16rem);
+}
+
+.blotter-setup-api-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.35rem;
+}
+
+.blotter-setup-api-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.blotter-setup-api-refresh {
+  flex: 0 0 auto;
+  align-self: stretch;
+}
+
+.blotter-setup-api-msg {
+  margin: 0;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+}
+
+.blotter-setup-api-msg--error {
+  color: var(--bc-error-text);
+}
+
+.blotter-preset-select {
+  width: 100%;
+  margin-top: 0.35rem;
+}
+
 .blotter-label {
   font-size: 0.6875rem;
   font-weight: 600;

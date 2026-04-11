@@ -71,6 +71,53 @@ function persistPerspectiveThemeChoice(choice: VortexPerspectiveThemeChoice): vo
   }
 }
 
+/** Normalize JSON from GET /api/tables (and similar) into table name strings. */
+function parseTablesListResponse(data: unknown): string[] {
+  const pushString = (out: Set<string>, s: string): void => {
+    const t = s.trim();
+    if (t.length > 0) {
+      out.add(t);
+    }
+  };
+
+  const collect = (node: unknown, out: Set<string>): void => {
+    if (node === null || node === undefined) {
+      return;
+    }
+    if (typeof node === 'string') {
+      pushString(out, node);
+      return;
+    }
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        collect(item, out);
+      }
+      return;
+    }
+    if (typeof node === 'object') {
+      const o = node as Record<string, unknown>;
+      if (typeof o['name'] === 'string') {
+        pushString(out, o['name']);
+      }
+      if (typeof o['table'] === 'string') {
+        pushString(out, o['table']);
+      }
+      if (typeof o['id'] === 'string') {
+        pushString(out, o['id']);
+      }
+      for (const key of ['tables', 'data', 'names', 'results', 'items'] as const) {
+        if (key in o) {
+          collect(o[key], out);
+        }
+      }
+    }
+  };
+
+  const out = new Set<string>();
+  collect(data, out);
+  return [...out].sort((a, b) => a.localeCompare(b));
+}
+
 export {
   isVortexBlotterSavedLayoutV1,
   VORTEX_BLOTTER_LAYOUTS_STORAGE_KEY,
@@ -149,9 +196,10 @@ export class VortexBlotter {
   private static columnHeaderRowSeq = 0;
   private readonly fieldUid = `vb-${VortexBlotter.idSeq++}`;
   readonly wsInputId = `vortex-blotter-ws-${this.fieldUid}`;
-  readonly wsDatalistId = `vortex-blotter-ws-dl-${this.fieldUid}`;
+  readonly wsPresetSelectId = `vortex-blotter-ws-presets-${this.fieldUid}`;
+  readonly tablesApiInputId = `vortex-blotter-tables-api-${this.fieldUid}`;
   readonly tableInputId = `vortex-blotter-table-${this.fieldUid}`;
-  readonly tableDatalistId = `vortex-blotter-table-dl-${this.fieldUid}`;
+  readonly tablePresetSelectId = `vortex-blotter-table-presets-${this.fieldUid}`;
   readonly rowStyleEditorTitleId = `vortex-blotter-row-style-title-${this.fieldUid}`;
   readonly rowStyleEditorPanelId = `vortex-blotter-row-style-panel-${this.fieldUid}`;
   readonly columnHeaderEditorTitleId = `vortex-blotter-col-headers-title-${this.fieldUid}`;
@@ -169,6 +217,12 @@ export class VortexBlotter {
 
   /** WebSocket URL to the Perspective server; optional if using demo + local controls. */
   readonly websocketUrl = input<string>('');
+
+  /**
+   * REST endpoint that returns a JSON list of hosted table names (picker mode). When set, it
+   * overrides the URL shown in the built-in "Tables list" field for fetching presets.
+   */
+  readonly tablesListApiUrl = input<string>('');
 
   /**
    * Programmatic row style rules. Merged with rules applied from the Row style editor
@@ -280,8 +334,74 @@ export class VortexBlotter {
 
   readonly internalUrl = signal('http://localhost:4000/ws');
   readonly internalTable = signal('RatesMarketData');
+
+  /** GET JSON list of table names; default matches common local Perspective REST helpers. */
+  readonly internalTablesListApiUrl = signal('http://localhost:8090/api/tables');
+
+  /** Names from `tablesListApiUrl` / `internalTablesListApiUrl` (merged into table preset list). */
+  readonly fetchedTableNames = signal<string[]>([]);
+
+  readonly tablesListFetchError = signal<string | null>(null);
+  readonly tablesListLoading = signal(false);
+
+  /**
+   * When the text field matches a preset exactly, the preset `<select>` shows it; otherwise
+   * the placeholder option is selected (native `<datalist>` would hide other presets once the
+   * field held a non-matching value).
+   */
+  readonly internalUrlPresetSelectValue = computed(() => {
+    const u = this.internalUrl();
+    return (this.wsUrlOptions as readonly string[]).includes(u) ? u : '';
+  });
+
+  readonly tableNameSelectOptions = computed(() => {
+    const fromApi = this.fetchedTableNames();
+    const staticNames = this.tableNameOptions as readonly string[];
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const s of staticNames) {
+      if (!seen.has(s)) {
+        seen.add(s);
+        out.push(s);
+      }
+    }
+    for (const s of fromApi) {
+      if (!seen.has(s)) {
+        seen.add(s);
+        out.push(s);
+      }
+    }
+    return out;
+  });
+
+  readonly internalTablePresetSelectValue = computed(() => {
+    const t = this.internalTable();
+    return this.tableNameSelectOptions().includes(t) ? t : '';
+  });
   /** When true, load from internalUrl/internalTable instead of demo rows. */
   readonly internalLive = signal(false);
+
+  /**
+   * URL used to load the table-name list: optional `tablesListApiUrl` input wins over the
+   * built-in field (picker mode only).
+   */
+  readonly effectiveTablesListApiUrl = computed(() => {
+    const fromParent = this.tablesListApiUrl().trim();
+    if (fromParent.length > 0) {
+      return fromParent;
+    }
+    return this.internalTablesListApiUrl().trim();
+  });
+
+  /** When the host sets `tablesListApiUrl`, the built-in field is read-only. */
+  readonly isTablesListApiUrlFromParent = computed(() => this.tablesListApiUrl().trim().length > 0);
+
+  readonly tablesListApiUrlFieldValue = computed(() =>
+    this.isTablesListApiUrlFromParent() ? this.tablesListApiUrl() : this.internalTablesListApiUrl(),
+  );
+
+  /** Incremented by "Refresh" so the table list is fetched again without changing the URL. */
+  private readonly tablesListRefetchNonce = signal(0);
 
   readonly loadError = signal<string | null>(null);
   readonly demoHint = signal<string | null>(null);
@@ -377,6 +497,30 @@ export class VortexBlotter {
         this.internalTable().trim(),
         this.toWebSocketUrl(this.internalUrl()),
       );
+    });
+
+    effect((onCleanup) => {
+      const parentBlocks = this.hasParentConfig();
+      const url = this.effectiveTablesListApiUrl();
+      this.tablesListRefetchNonce();
+
+      if (parentBlocks) {
+        this.fetchedTableNames.set([]);
+        this.tablesListFetchError.set(null);
+        this.tablesListLoading.set(false);
+        return;
+      }
+
+      if (url.length === 0) {
+        this.fetchedTableNames.set([]);
+        this.tablesListFetchError.set(null);
+        this.tablesListLoading.set(false);
+        return;
+      }
+
+      const ac = new AbortController();
+      onCleanup(() => ac.abort());
+      void this.fetchTablesList(url, ac.signal);
     });
 
     effect(() => {
@@ -482,6 +626,31 @@ export class VortexBlotter {
 
   onTableInput(event: Event): void {
     this.internalTable.set((event.target as HTMLInputElement).value);
+  }
+
+  onWsPresetChange(event: Event): void {
+    const v = (event.target as HTMLSelectElement).value;
+    if (v.length > 0) {
+      this.internalUrl.set(v);
+    }
+  }
+
+  onTablePresetChange(event: Event): void {
+    const v = (event.target as HTMLSelectElement).value;
+    if (v.length > 0) {
+      this.internalTable.set(v);
+    }
+  }
+
+  onTablesListApiUrlInput(event: Event): void {
+    if (this.isTablesListApiUrlFromParent()) {
+      return;
+    }
+    this.internalTablesListApiUrl.set((event.target as HTMLInputElement).value);
+  }
+
+  refreshTablesList(): void {
+    this.tablesListRefetchNonce.update((n) => n + 1);
   }
 
   toggleToolbar(): void {
@@ -853,6 +1022,37 @@ export class VortexBlotter {
       fontSize: '',
       fontWeight: '',
     };
+  }
+
+  private async fetchTablesList(url: string, signal: AbortSignal): Promise<void> {
+    this.tablesListLoading.set(true);
+    this.tablesListFetchError.set(null);
+    try {
+      const res = await fetch(url, {
+        signal,
+        headers: { Accept: 'application/json' },
+      });
+      if (!res.ok) {
+        throw new Error(`Tables list HTTP ${res.status}`);
+      }
+      const json: unknown = await res.json();
+      if (signal.aborted) {
+        return;
+      }
+      const names = parseTablesListResponse(json);
+      this.fetchedTableNames.set(names);
+      this.tablesListFetchError.set(null);
+    } catch (e) {
+      if (signal.aborted || (e instanceof DOMException && e.name === 'AbortError')) {
+        return;
+      }
+      this.fetchedTableNames.set([]);
+      this.tablesListFetchError.set(e instanceof Error ? e.message : 'Failed to load tables');
+    } finally {
+      if (!signal.aborted) {
+        this.tablesListLoading.set(false);
+      }
+    }
   }
 
   private toWebSocketUrl(url: string): string {

@@ -140,18 +140,75 @@
                   [id]="wsInputId"
                   type="text"
                   class="blotter-input"
-                  [attr.list]="wsDatalistId"
                   [value]="internalUrl()"
                   (input)="onWsInput($event)"
                   spellcheck="false"
                   autocomplete="off"
                   placeholder="ws://host:port/path"
                 />
-                <datalist [id]="wsDatalistId">
+                <select
+                  [id]="wsPresetSelectId"
+                  class="blotter-theme-select blotter-preset-select"
+                  [value]="internalUrlPresetSelectValue()"
+                  (change)="onWsPresetChange($event)"
+                  aria-label="Suggested WebSocket URLs"
+                  title="Choose a preset or edit the URL above"
+                >
+                  <option value="">Choose a preset…</option>
                   @for (u of wsUrlOptions; track u) {
-                    <option [value]="u"></option>
+                    <option [value]="u">{{ u }}</option>
                   }
-                </datalist>
+                </select>
+              </div>
+              <div
+                class="blotter-field blotter-field--tables-api"
+                [attr.aria-busy]="tablesListLoading()"
+              >
+                <label class="blotter-label" [attr.for]="tablesApiInputId"
+                  >Tables list (REST)</label
+                >
+                <div class="blotter-setup-api-row">
+                  <input
+                    [id]="tablesApiInputId"
+                    type="url"
+                    class="blotter-input blotter-setup-api-input"
+                    [value]="tablesListApiUrlFieldValue()"
+                    [readOnly]="isTablesListApiUrlFromParent()"
+                    (input)="onTablesListApiUrlInput($event)"
+                    spellcheck="false"
+                    autocomplete="off"
+                    placeholder="http://localhost:8090/api/tables"
+                    title="JSON endpoint that returns hosted table names"
+                  />
+                  <button
+                    type="button"
+                    class="blotter-icon-btn blotter-setup-api-refresh"
+                    (click)="refreshTablesList()"
+                    [disabled]="
+                      effectiveTablesListApiUrl().trim().length === 0 ||
+                      tablesListLoading()
+                    "
+                    aria-label="Refresh table list from API"
+                    title="Refresh table list"
+                  >
+                    <svg
+                      class="blotter-icon-btn__svg"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path
+                        fill="currentColor"
+                        d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.56 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                @if (tablesListFetchError(); as apiErr) {
+                  <p class="blotter-setup-api-msg blotter-setup-api-msg--error" role="status">
+                    {{ apiErr }}
+                  </p>
+                }
               </div>
               <div class="blotter-field">
                 <label class="blotter-label" [attr.for]="tableInputId"
@@ -161,18 +218,25 @@
                   [id]="tableInputId"
                   type="text"
                   class="blotter-input"
-                  [attr.list]="tableDatalistId"
                   [value]="internalTable()"
                   (input)="onTableInput($event)"
                   spellcheck="false"
                   autocomplete="off"
                   placeholder="Hosted table id"
                 />
-                <datalist [id]="tableDatalistId">
-                  @for (t of tableNameOptions; track t) {
-                    <option [value]="t"></option>
+                <select
+                  [id]="tablePresetSelectId"
+                  class="blotter-theme-select blotter-preset-select"
+                  [value]="internalTablePresetSelectValue()"
+                  (change)="onTablePresetChange($event)"
+                  aria-label="Suggested table names"
+                  title="Choose a preset or edit the name above"
+                >
+                  <option value="">Choose a preset…</option>
+                  @for (t of tableNameSelectOptions(); track t) {
+                    <option [value]="t">{{ t }}</option>
                   }
-                </datalist>
+                </select>
               </div>
               @if (!internalLive()) {
                 <button
