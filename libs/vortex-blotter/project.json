@@ -1,0 +1,28 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "vortex-blotter",
+  "projectType": "library",
+  "prefix": "lib",
+  "sourceRoot": "libs/vortex-blotter/src",
+  "tags": ["type:lib"],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:ng-packagr",
+      "configurations": {
+        "production": {
+          "tsConfig": "libs/vortex-blotter/tsconfig.lib.prod.json"
+        },
+        "development": {
+          "tsConfig": "libs/vortex-blotter/tsconfig.lib.json"
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "options": {
+        "tsConfig": "libs/vortex-blotter/tsconfig.spec.json"
+      }
+    }
+  }
+}

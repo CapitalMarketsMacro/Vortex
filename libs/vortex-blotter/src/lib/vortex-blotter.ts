@@ -49,74 +49,11 @@ import {
   type VortexBlotterRowEditorDraft,
   type VortexBlotterRowStyleConditionOp,
 } from './row-style-editor';
-
-function readStoredPerspectiveTheme(): VortexPerspectiveThemeChoice {
-  if (typeof localStorage === 'undefined') {
-    return 'pro-dark';
-  }
-  try {
-    const v = localStorage.getItem(VORTEX_PERSPECTIVE_THEME_STORAGE_KEY);
-    return parseVortexPerspectiveThemeChoice(v) ?? 'pro-dark';
-  } catch {
-    /* ignore */
-  }
-  return 'pro-dark';
-}
-
-function persistPerspectiveThemeChoice(choice: VortexPerspectiveThemeChoice): void {
-  try {
-    localStorage.setItem(VORTEX_PERSPECTIVE_THEME_STORAGE_KEY, choice);
-  } catch {
-    /* ignore */
-  }
-}
-
-/** Normalize JSON from GET /api/tables (and similar) into table name strings. */
-function parseTablesListResponse(data: unknown): string[] {
-  const pushString = (out: Set<string>, s: string): void => {
-    const t = s.trim();
-    if (t.length > 0) {
-      out.add(t);
-    }
-  };
-
-  const collect = (node: unknown, out: Set<string>): void => {
-    if (node === null || node === undefined) {
-      return;
-    }
-    if (typeof node === 'string') {
-      pushString(out, node);
-      return;
-    }
-    if (Array.isArray(node)) {
-      for (const item of node) {
-        collect(item, out);
-      }
-      return;
-    }
-    if (typeof node === 'object') {
-      const o = node as Record<string, unknown>;
-      if (typeof o['name'] === 'string') {
-        pushString(out, o['name']);
-      }
-      if (typeof o['table'] === 'string') {
-        pushString(out, o['table']);
-      }
-      if (typeof o['id'] === 'string') {
-        pushString(out, o['id']);
-      }
-      for (const key of ['tables', 'data', 'names', 'results', 'items'] as const) {
-        if (key in o) {
-          collect(o[key], out);
-        }
-      }
-    }
-  };
-
-  const out = new Set<string>();
-  collect(data, out);
-  return [...out].sort((a, b) => a.localeCompare(b));
-}
+import {
+  readStoredPerspectiveTheme,
+  persistPerspectiveThemeChoice,
+} from './perspective-theme-storage';
+import { parseTablesListResponse } from './tables-list-parser';
 
 export {
   isVortexBlotterSavedLayoutV1,

@@ -1,0 +1,12 @@
+{
+  "name": "@vortex/blotter-react",
+  "version": "0.0.1",
+  "peerDependencies": {
+    "@perspective-dev/client": "^4.4.0",
+    "@perspective-dev/viewer": "^4.4.0",
+    "@perspective-dev/viewer-d3fc": "^4.4.0",
+    "@perspective-dev/viewer-datagrid": "^4.4.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}

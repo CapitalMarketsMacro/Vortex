@@ -9,21 +9,45 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
-const outDir = join(root, 'projects', 'vortex-blotter', 'assets', 'wasm');
+const angularDir = join(root, 'libs', 'vortex-blotter', 'assets', 'wasm');
+const coreDir = join(root, 'libs', 'vortex-blotter-core', 'assets', 'wasm');
+const reactPublicDir = join(root, 'apps', 'vortex-react', 'public', 'assets', 'vortex-blotter', 'wasm');
 
-const copies = [
-  [
-    join(root, 'node_modules', '@perspective-dev', 'viewer', 'dist', 'wasm', 'perspective-viewer.wasm'),
-    join(outDir, 'perspective-viewer.wasm'),
-  ],
-  [
-    join(root, 'node_modules', '@perspective-dev', 'server', 'dist', 'wasm', 'perspective-server.wasm'),
-    join(outDir, 'perspective-server.wasm'),
-  ],
+const wasmFiles = [
+  {
+    src: join(root, 'node_modules', '@perspective-dev', 'viewer', 'dist', 'wasm', 'perspective-viewer.wasm'),
+    name: 'perspective-viewer.wasm',
+  },
+  {
+    src: join(root, 'node_modules', '@perspective-dev', 'server', 'dist', 'wasm', 'perspective-server.wasm'),
+    name: 'perspective-server.wasm',
+  },
 ];
 
-mkdirSync(outDir, { recursive: true });
-for (const [from, to] of copies) {
-  copyFileSync(from, to);
-  console.log(`sync-perspective-wasm: ${to}`);
+for (const dir of [angularDir, coreDir, reactPublicDir]) {
+  mkdirSync(dir, { recursive: true });
+}
+
+for (const { src, name } of wasmFiles) {
+  for (const dir of [angularDir, coreDir, reactPublicDir]) {
+    const dest = join(dir, name);
+    copyFileSync(src, dest);
+    console.log(`sync-perspective-wasm: ${dest}`);
+  }
+}
+
+// Copy perspective-themes.css to Angular lib assets and React public dir
+const themeSrc = join(root, 'node_modules', '@perspective-dev', 'viewer', 'dist', 'css', 'perspective-themes.css');
+const themeTargets = [
+  join(root, 'libs', 'vortex-blotter', 'assets', 'perspective-themes.css'),
+  join(root, 'libs', 'vortex-blotter-core', 'assets', 'perspective-themes.css'),
+  join(root, 'apps', 'vortex-react', 'public', 'assets', 'vortex-blotter', 'perspective-themes.css'),
+];
+for (const dest of themeTargets) {
+  try {
+    copyFileSync(themeSrc, dest);
+    console.log(`sync-perspective-wasm: ${dest}`);
+  } catch {
+    // perspective-themes.css source may differ by version; skip on error
+  }
 }

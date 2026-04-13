@@ -1,11 +1,11 @@
 ---
 name: perspective
-description: Integration knowledge for Perspective (@perspective-dev/* v4.4.x) as used by the vortex-blotter library. Use when touching the Perspective viewer, WASM bootstrap, themes, layout save/restore, row styling, column headers, or anything under projects/vortex-blotter/src/lib/perspective-*.ts.
+description: Integration knowledge for Perspective (@perspective-dev/* v4.4.x) as used by the vortex-blotter library. Use when touching the Perspective viewer, WASM bootstrap, themes, layout save/restore, row styling, column headers, or anything under libs/vortex-blotter/src/lib/perspective-*.ts.
 ---
 
 # Perspective (`@perspective-dev/*`) in vortex-blotter
 
-This workspace wraps **Perspective** (the high-performance data-visualization engine, originally from FINOS, maintained at https://github.com/perspective-dev/perspective) in a reusable Angular component, **`<vortex-blotter>`**. The library lives in `projects/vortex-blotter/` and is published to npm as `vortex-blotter`.
+This workspace wraps **Perspective** (the high-performance data-visualization engine, originally from FINOS, maintained at https://github.com/perspective-dev/perspective) in a reusable Angular component, **`<vortex-blotter>`**. The library lives in `libs/vortex-blotter/` and is published to npm as `vortex-blotter`.
 
 Perspective version pinned here: **`@perspective-dev/* ^4.4.0`**.
 
@@ -29,7 +29,7 @@ Perspective ships two `.wasm` files that must be loaded **before** `<perspective
 - `perspective-server.wasm` (from `@perspective-dev/server`)
 - `perspective-viewer.wasm` (from `@perspective-dev/viewer`)
 
-This library does **not** use the ES-module `loader: { ".wasm": "file" }` approach. Instead it **vendors** both files in `projects/vortex-blotter/assets/wasm/` and loads them via `fetch()` in `perspective-bootstrap.ts`:
+This library does **not** use the ES-module `loader: { ".wasm": "file" }` approach. Instead it **vendors** both files in `libs/vortex-blotter/assets/wasm/` and loads them via `fetch()` in `perspective-bootstrap.ts`:
 
 ```ts
 await Promise.all([
@@ -52,7 +52,7 @@ Vendored `.wasm` files are **version-locked** to the matching JS in `@perspectiv
 npm run postinstall   # or: node scripts/sync-perspective-wasm.mjs
 ```
 
-which copies the current `.wasm` files from `node_modules/@perspective-dev/{server,viewer}` into `projects/vortex-blotter/assets/wasm/`. Do this on every version bump. `perspective-themes.css` is vendored the same way and must also be kept in sync.
+which copies the current `.wasm` files from `node_modules/@perspective-dev/{server,viewer}` into `libs/vortex-blotter/assets/wasm/`. Do this on every version bump. `perspective-themes.css` is vendored the same way and must also be kept in sync.
 
 ### Consumer-side setup
 

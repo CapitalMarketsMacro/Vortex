@@ -1,0 +1,7 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "vortex-blotter-react",
+  "projectType": "library",
+  "sourceRoot": "libs/vortex-blotter-react/src",
+  "tags": ["type:lib"]
+}

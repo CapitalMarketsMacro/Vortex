@@ -1,0 +1,71 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "vortex",
+  "projectType": "application",
+  "prefix": "app",
+  "sourceRoot": "apps/vortex/src",
+  "tags": ["type:app"],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "options": {
+        "browser": "apps/vortex/src/main.ts",
+        "tsConfig": "apps/vortex/tsconfig.app.json",
+        "outputPath": "dist/vortex",
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/vortex/public"
+          },
+          {
+            "glob": "**/*",
+            "input": "libs/vortex-blotter/assets/wasm",
+            "output": "assets/vortex-blotter/wasm"
+          }
+        ],
+        "styles": [
+          "libs/vortex-blotter/assets/perspective-themes.css",
+          "apps/vortex/src/styles.css"
+        ]
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "1.5MB",
+              "maximumError": "3MB"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "28kB",
+              "maximumError": "32kB"
+            }
+          ],
+          "outputHashing": "all"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "configurations": {
+        "production": {
+          "buildTarget": "vortex:build:production"
+        },
+        "development": {
+          "buildTarget": "vortex:build:development"
+        }
+      },
+      "defaultConfiguration": "development"
+    },
+    "test": {
+      "executor": "@angular/build:unit-test"
+    }
+  }
+}

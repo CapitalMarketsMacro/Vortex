@@ -1,9 +1,9 @@
 # Vortex
 
-This repository is an **Angular 21** workspace that contains:
+This repository is an **Angular 21 + Nx** monorepo that contains:
 
-1. **Vortex** — a host application that showcases the library (header shell + full-height blotter region).
-2. **`vortex-blotter`** — an Angular library under `projects/vortex-blotter/` that wraps **[Perspective](https://perspective.finos.org/)** (`@perspective-dev/*`) in a reusable **`<vortex-blotter>`** component, with vendored WASM binaries and theme CSS so consumers can integrate without bundling Perspective’s `.wasm` through the app compiler.
+1. **Vortex** (`apps/vortex/`) — a host application that showcases the library (header shell + full-height blotter region).
+2. **`vortex-blotter`** (`libs/vortex-blotter/`) — an Angular library that wraps **[Perspective](https://perspective.finos.org/)** (`@perspective-dev/*`) in a reusable **`<vortex-blotter>`** component, with vendored WASM binaries and theme CSS so consumers can integrate without bundling Perspective’s `.wasm` through the app compiler.
 
 The library is built with **ng-packagr** into `dist/vortex-blotter/` and is intended to be published to npm as the **`vortex-blotter`** package.
 
@@ -31,18 +31,18 @@ Both inputs are optional **strings** (signal inputs):
 
 ```bash
 npm install
-npm start          # ng serve — Vortex app
-npm test           # Vitest via Angular unit-test builder
-npm run build      # ng build — Vortex app
+npm start          # nx serve vortex — Vortex app
+npm test           # nx run-many -t test — Vitest via Angular unit-test builder
+npm run build      # nx build vortex — Vortex app
 ```
 
 Build the library (output in `dist/vortex-blotter/`):
 
 ```bash
-npx ng build vortex-blotter
+npm run build:lib  # nx build vortex-blotter
 ```
 
-While hacking in this monorepo, the app imports **`vortex-blotter`** via **`tsconfig.json` path mapping** to `projects/vortex-blotter/src/public-api.ts`, not only from `dist/`.
+While hacking in this monorepo, the app imports **`vortex-blotter`** via **`tsconfig.base.json` path mapping** to `libs/vortex-blotter/src/public-api.ts`, not only from `dist/`.
 
 ---
 
@@ -163,12 +163,12 @@ Package **subpaths** (for assets / tooling): `vortex-blotter/perspective-themes.
 From the repo root, after a successful library build:
 
 ```bash
-npx ng build vortex-blotter
+npm run build:lib
 cd dist/vortex-blotter
 npm publish   # or npm pack to inspect the tarball
 ```
 
-Bump **`version`** in **`projects/vortex-blotter/package.json`** before publishing. Keep vendored **`perspective-themes.css`** and WASM files in sync when upgrading **`@perspective-dev/*`** peers.
+Bump **`version`** in **`libs/vortex-blotter/package.json`** before publishing. Keep vendored **`perspective-themes.css`** and WASM files in sync when upgrading **`@perspective-dev/*`** peers.
 
 ---
 

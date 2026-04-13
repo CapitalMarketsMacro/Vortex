@@ -1,0 +1,15 @@
+{
+  "name": "@vortex/blotter-core",
+  "version": "0.0.1",
+  "peerDependencies": {
+    "@perspective-dev/client": "^4.4.0",
+    "@perspective-dev/server": "^4.4.0",
+    "@perspective-dev/viewer": "^4.4.0",
+    "@perspective-dev/viewer-d3fc": "^4.4.0",
+    "@perspective-dev/viewer-datagrid": "^4.4.0"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "sideEffects": false
+}

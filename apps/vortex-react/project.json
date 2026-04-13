@@ -1,0 +1,35 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "vortex-react",
+  "projectType": "application",
+  "root": "apps/vortex-react",
+  "sourceRoot": "apps/vortex-react/src",
+  "tags": ["type:app"],
+  "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "options": {
+        "outputPath": "dist/vortex-react"
+      },
+      "defaultConfiguration": "production",
+      "configurations": {
+        "production": {},
+        "development": {
+          "mode": "development"
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/vite:dev-server",
+      "defaultConfiguration": "development",
+      "configurations": {
+        "production": {
+          "buildTarget": "vortex-react:build:production"
+        },
+        "development": {
+          "buildTarget": "vortex-react:build:development"
+        }
+      }
+    }
+  }
+}

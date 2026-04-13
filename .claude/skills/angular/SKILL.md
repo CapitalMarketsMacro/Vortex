@@ -1,22 +1,22 @@
 ---
 name: angular
-description: Angular 21 best practices for this workspace (Vortex app + vortex-blotter ng-packagr library). Use when authoring or editing any *.ts / *.html / *.css under src/ or projects/vortex-blotter/. Covers standalone components, signals, host bindings, native control flow, and the monorepo path-mapping gotcha.
+description: Angular 21 best practices for this workspace (Vortex app + vortex-blotter ng-packagr library). Use when authoring or editing any *.ts / *.html / *.css under apps/vortex/ or libs/vortex-blotter/. Covers standalone components, signals, host bindings, native control flow, and the monorepo path-mapping gotcha.
 ---
 
 # Angular 21 in this workspace
 
 This is an **Angular 21** workspace (`@angular/core ^21.2.0`) containing:
 
-- **`src/`** — the Vortex host application.
-- **`projects/vortex-blotter/`** — a standalone-component **library** built with **`ng-packagr`** and published as the `vortex-blotter` npm package. Built output lands in `dist/vortex-blotter/`.
+- **`apps/vortex/src/`** — the Vortex host application.
+- **`libs/vortex-blotter/`** — a standalone-component **library** built with **`ng-packagr`** and published as the `vortex-blotter` npm package. Built output lands in `dist/vortex-blotter/`.
 
-While hacking in the monorepo, the app imports the library via **`tsconfig.json` path mapping** to `projects/vortex-blotter/src/public-api.ts` — **not** from `dist/`. Anything you add to the library must be re-exported from `public-api.ts` to be visible to the app. Anything you export there becomes part of the library's public API surface.
+While hacking in the monorepo, the app imports the library via **`tsconfig.base.json` path mapping** to `libs/vortex-blotter/src/public-api.ts` — **not** from `dist/`. Anything you add to the library must be re-exported from `public-api.ts` to be visible to the app. Anything you export there becomes part of the library's public API surface.
 
 Build commands:
 
-- `npm start` — `ng serve` the host app.
-- `npm test` — Vitest via Angular unit-test builder (not Karma).
-- `npx ng build vortex-blotter` — build the library.
+- `npm start` — `nx serve vortex` the host app.
+- `npm test` — `nx run-many -t test` via Vitest + Angular unit-test builder (not Karma).
+- `npm run build:lib` — `nx build vortex-blotter` to build the library.
 
 ## Hard rules (from `.claude/CLAUDE.md`)
 
@@ -60,7 +60,7 @@ These are project instructions — follow them exactly:
 })
 ```
 
-Note: `projects/vortex-blotter/src/lib/vortex-blotter.ts` currently uses `@HostListener('document:keydown', ...)` — it predates this rule. If you touch that file, migrate it to the `host` object rather than adding another `@HostListener`.
+Note: `libs/vortex-blotter/src/lib/vortex-blotter.ts` currently uses `@HostListener('document:keydown', ...)` — it predates this rule. If you touch that file, migrate it to the `host` object rather than adding another `@HostListener`.
 
 ### Services
 
@@ -84,8 +84,8 @@ Note: `projects/vortex-blotter/src/lib/vortex-blotter.ts` currently uses `@HostL
 
 - The library uses custom elements from Perspective, so `vortex-blotter.ts` declares `schemas: [CUSTOM_ELEMENTS_SCHEMA]`. Any new component that embeds `<perspective-viewer>` must do the same.
 - `imports: []` is fine for components that only use native control flow — no `CommonModule` needed.
-- When you add a new public symbol to the library, export it from `projects/vortex-blotter/src/public-api.ts`. Reorganizing lib internals without touching `public-api.ts` is a silent breakage for consumers.
-- Bump `projects/vortex-blotter/package.json` `version` before publishing.
+- When you add a new public symbol to the library, export it from `libs/vortex-blotter/src/public-api.ts`. Reorganizing lib internals without touching `public-api.ts` is a silent breakage for consumers.
+- Bump `libs/vortex-blotter/package.json` `version` before publishing.
 
 ## Tests
 

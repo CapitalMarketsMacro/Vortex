@@ -1,42 +1,16 @@
-/* To learn more about Typescript configuration file: https://www.typescriptlang.org/docs/handbook/tsconfig-json.html. */
-/* To learn more about Angular compiler options: https://angular.dev/reference/configs/angular-compiler-options. */
 {
-  "compileOnSave": false,
-  "compilerOptions": {
-    "strict": true,
-    "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "skipLibCheck": true,
-    "isolatedModules": true,
-    "experimentalDecorators": true,
-    "importHelpers": true,
-    "target": "ES2022",
-    "module": "preserve",
-    "paths": {
-      "vortex-blotter": ["./projects/vortex-blotter/src/public-api.ts"]
-    }
-  },
-  "angularCompilerOptions": {
-    "enableI18nLegacyMessageIdFormat": false,
-    "strictInjectionParameters": true,
-    "strictInputAccessModifiers": true,
-    "strictTemplates": true
-  },
+  "extends": "./tsconfig.base.json",
   "files": [],
   "references": [
-    {
-      "path": "./tsconfig.app.json"
-    },
-    {
-      "path": "./tsconfig.spec.json"
-    },
-    {
-      "path": "./projects/vortex-blotter/tsconfig.lib.json"
-    },
-    {
-      "path": "./projects/vortex-blotter/tsconfig.spec.json"
-    }
+    { "path": "./apps/vortex/tsconfig.app.json" },
+    { "path": "./apps/vortex/tsconfig.spec.json" },
+    { "path": "./apps/vortex-react/tsconfig.app.json" },
+    { "path": "./apps/vortex-react/tsconfig.spec.json" },
+    { "path": "./libs/vortex-blotter-core/tsconfig.lib.json" },
+    { "path": "./libs/vortex-blotter-core/tsconfig.spec.json" },
+    { "path": "./libs/vortex-blotter/tsconfig.lib.json" },
+    { "path": "./libs/vortex-blotter/tsconfig.spec.json" },
+    { "path": "./libs/vortex-blotter-react/tsconfig.lib.json" },
+    { "path": "./libs/vortex-blotter-react/tsconfig.spec.json" }
   ]
 }
